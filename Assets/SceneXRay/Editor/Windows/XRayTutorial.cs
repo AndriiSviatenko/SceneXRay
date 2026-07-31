@@ -15,7 +15,7 @@ namespace SceneXRay.Editor.Windows
             ("1 · Select an object",
                 "Pick any GameObject. The Scene View overlay draws its dependency links right where the objects are."),
             ("2 · Open the graph",
-                "Tools > SceneXRay > Open Graph View (Ctrl+Shift+X). Nodes are objects, edges are references. Double-click a node to drill in, Backspace to go back."),
+                "Tools > SceneXRay > Open Graph View (Ctrl+Shift+Alt+X). Nodes are objects, edges are references. Double-click a node to drill in, Backspace to go back."),
             ("3 · Narrow it down",
                 "Filter by name, component or hierarchy depth. Hover a node to light up its neighbours and dim the rest."),
             ("4 · Export it",

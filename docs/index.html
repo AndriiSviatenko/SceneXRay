@@ -250,7 +250,7 @@ footer{padding:36px 60px 60px;color:var(--text3);font-size:12px}
 
   <div class="steps">
     <div class="step"><div class="step-n">1</div><div><div class="step-title">Drop the folder in</div><div class="step-desc">Copy <span class="inline-code">SceneXRay/</span> anywhere under <span class="inline-code">Assets/</span>. It ships its own assembly definition, so it compiles on its own and never leaks into your runtime assemblies.</div></div></div>
-    <div class="step"><div class="step-n">2</div><div><div class="step-title">Open the graph</div><div class="step-desc"><span class="inline-code">Tools ▸ SceneXRay ▸ Open Graph View</span> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>. The shortcut is rebindable under <span class="inline-code">Edit ▸ Shortcuts ▸ Main Menu</span>.</div></div></div>
+    <div class="step"><div class="step-n">2</div><div><div class="step-title">Open the graph</div><div class="step-desc"><span class="inline-code">Tools ▸ SceneXRay ▸ Open Graph View</span> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>X</kbd>. The shortcut is rebindable under <span class="inline-code">Edit ▸ Shortcuts ▸ Main Menu</span>.</div></div></div>
     <div class="step"><div class="step-n">3</div><div><div class="step-title">Press Refresh</div><div class="step-desc">Every loaded scene is scanned. Large scenes are paged — raise <span class="inline-code">Max Nodes In Graph</span> in settings if you want more per page.</div></div></div>
   </div>
 
@@ -612,7 +612,7 @@ graph.<span class="method">FrameGraph</span>();   <span class="cmt">// fit every
   <table>
     <tr><th>Symptom</th><th>Cause / fix</th></tr>
     <tr><td>Graph is empty</td><td>Press <strong>Refresh</strong>. If the scene really has no serialized cross-references there is nothing to draw — check with <strong>Selected Only</strong> off.</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> does nothing</td><td>Another tool grabbed the chord, or the assembly has not recompiled yet. Check <span class="inline-code">Edit ▸ Shortcuts ▸ Main Menu ▸ Tools/SceneXRay/Open Graph View</span> — conflicts are flagged there, and the chord can be rebound.</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>X</kbd> does nothing</td><td>Something else in the editor has claimed the chord. Rebind it under <span class="inline-code">Edit ▸ Shortcuts ▸ Main Menu ▸ Tools/SceneXRay/Open Graph View</span>; the menu item itself always works.</td></tr>
     <tr><td>Materials / SOs are missing from the graph</td><td><strong>Scan Asset References</strong> is off, or the asset is a Unity built-in — enable <strong>Include Built-in Assets</strong>.</td></tr>
     <tr><td>Too many nodes to read</td><td>Focus an object instead of showing all, lower <strong>Max Nodes In Graph</strong>, or filter by link type.</td></tr>
     <tr><td>Layout keeps resetting</td><td>Save it: <span class="inline-code">Layout ▸ Save my layout</span> and keep <strong>Auto-restore on open</strong> enabled.</td></tr>

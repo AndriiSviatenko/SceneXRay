@@ -42,7 +42,7 @@ There is no bootstrap call, no prefab to drop in a scene, and no settings to fil
 ## Quick start
 
 ```
-1. Tools ▸ SceneXRay ▸ Open Graph View        (Ctrl+Shift+X)
+1. Tools ▸ SceneXRay ▸ Open Graph View        (Ctrl+Shift+Alt+X)
 2. Press Refresh — the loaded scenes are scanned
 3. Double-click any node to drill into it, Backspace to go back
 ```

@@ -43,7 +43,7 @@ namespace SceneXRay.Editor.Core
 
         // ── Tools: core ────────────────────────────────────────────
 
-        // Open Graph View lives on XRayWindow (Ctrl+Shift+X).
+        // Open Graph View lives on XRayWindow (Ctrl+Shift+Alt+X).
 
         [MenuItem("Tools/SceneXRay/Global Search", false, 1)]
         private static void OpenGlobalSearch() => XRayGlobalSearchWindow.ShowWindow();

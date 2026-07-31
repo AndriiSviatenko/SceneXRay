@@ -49,11 +49,10 @@ namespace SceneXRay.Editor.Windows
         private Button _refreshBtn, _exportBtn, _moreBtn, _settingsBtn, _searchBtn;
         private Label _searchPlaceholder;
 
-        // %#x = Ctrl+Shift+X (Cmd+Shift+X on macOS). The chord lives on the MenuItem rather than
-        // on a [Shortcut] so it is bound the moment the assembly compiles — a [Shortcut] default is
-        // only applied to a fresh shortcut profile, so anyone with an existing profile got nothing.
-        // Still rebindable: Edit > Shortcuts > Main Menu > Tools/SceneXRay/Open Graph View.
-        [MenuItem("Tools/SceneXRay/Open Graph View %#x", false, 0)]
+        // %#&x = Ctrl+Shift+Alt+X, matching the bookmark chords (…+J / …+K). Plain Ctrl+Shift+X is
+        // claimed by something in the editor and silently never fires, so this family is used
+        // instead. Rebindable under Edit > Shortcuts > Main Menu > Tools/SceneXRay/Open Graph View.
+        [MenuItem("Tools/SceneXRay/Open Graph View %#&x", false, 0)]
         public static void ShowWindow()
         {
             var window = GetWindow<XRayWindow>();
