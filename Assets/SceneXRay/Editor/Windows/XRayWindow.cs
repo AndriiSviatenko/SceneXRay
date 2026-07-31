@@ -6,7 +6,6 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using SceneXRay.Editor.Core;
 using System.Linq;
-using UnityEditor.ShortcutManagement;
 using UnityEditor.UIElements;
 
 namespace SceneXRay.Editor.Windows
@@ -50,18 +49,17 @@ namespace SceneXRay.Editor.Windows
         private Button _refreshBtn, _exportBtn, _moreBtn, _settingsBtn, _searchBtn;
         private Label _searchPlaceholder;
 
-        // Binding lives in the Shortcut Manager (rebindable, and visible under Edit > Shortcuts)
-        // instead of a MenuItem hotkey — the two cannot share a chord without conflicting.
-        [MenuItem("Tools/SceneXRay/Open Graph View", false, 0)]
+        // %#x = Ctrl+Shift+X (Cmd+Shift+X on macOS). The chord lives on the MenuItem rather than
+        // on a [Shortcut] so it is bound the moment the assembly compiles — a [Shortcut] default is
+        // only applied to a fresh shortcut profile, so anyone with an existing profile got nothing.
+        // Still rebindable: Edit > Shortcuts > Main Menu > Tools/SceneXRay/Open Graph View.
+        [MenuItem("Tools/SceneXRay/Open Graph View %#x", false, 0)]
         public static void ShowWindow()
         {
             var window = GetWindow<XRayWindow>();
             window.Show();
             window.Focus();
         }
-
-        [Shortcut("SceneXRay/Open Graph View", KeyCode.X, ShortcutModifiers.Action | ShortcutModifiers.Shift)]
-        private static void OpenGraphShortcut(ShortcutArguments _) => ShowWindow();
 
         /// <summary>Opens the window and focuses the graph on a single GameObject.</summary>
         public static void ShowWindowFocused(GameObject go)

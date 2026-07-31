@@ -6,12 +6,12 @@
 <title>SceneXRay — Unity dependency graph</title>
 <meta name="description" content="Editor-only Unity tool that draws every serialized reference, UnityEvent target and asset dependency in your scene as an interactive graph — with missing-reference detection, dependency cycles, a health score and a CI build guard."/>
 <meta name="theme-color" content="#000000"/>
-<link rel="canonical" href="https://azen.github.io/SceneXRay/"/>
+<link rel="canonical" href="https://andriisviatenko.github.io/SceneXRay/"/>
 <meta property="og:type" content="website"/>
 <meta property="og:site_name" content="SceneXRay"/>
 <meta property="og:title" content="SceneXRay — Unity dependency graph"/>
 <meta property="og:description" content="See every dependency in your Unity scene — before it breaks the build. Editor-only, no external packages."/>
-<meta property="og:url" content="https://azen.github.io/SceneXRay/"/>
+<meta property="og:url" content="https://andriisviatenko.github.io/SceneXRay/"/>
 <meta name="twitter:card" content="summary"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%230d1520'/%3E%3Cpath d='M14 16 L34 12 M14 16 L32 33 M14 34 L32 33' stroke='%233ea6ff' stroke-width='2.4' opacity='.7'/%3E%3Ccircle cx='14' cy='16' r='5' fill='%233ea6ff'/%3E%3Ccircle cx='34' cy='12' r='4.5' fill='%23a57dfa'/%3E%3Ccircle cx='32' cy='33' r='5' fill='%23ffb040'/%3E%3Ccircle cx='14' cy='34' r='4' fill='%234caf6e'/%3E%3C/svg%3E"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -82,7 +82,6 @@ h3.sub{font-family:var(--font);font-size:17px;font-weight:600;color:var(--white)
 .feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:32px}
 .feat-card{background:var(--bg1);padding:18px 20px;transition:background .12s}
 .feat-card:hover{background:var(--bg2)}
-.feat-ico{font-size:18px;margin-bottom:8px}
 .feat-name{font-family:var(--font);font-size:13px;font-weight:600;color:var(--white);margin-bottom:3px}
 .feat-desc{font-size:12px;color:var(--text2);line-height:1.5}
 .tag{display:inline-block;margin-top:7px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:2px}
@@ -183,12 +182,11 @@ footer{padding:36px 60px 60px;color:var(--text3);font-size:12px}
     <a href="#troubleshooting"><span class="ndot"></span>Troubleshooting</a>
   </div>
   <div class="nav-foot">
-    <a class="ext" href="https://github.com/Azen/SceneXRay" target="_blank" rel="noopener">
+    <a class="ext" href="https://github.com/AndriiSviatenko/SceneXRay" target="_blank" rel="noopener">
       <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
       Source on GitHub
     </a>
-    <a class="ext" href="https://github.com/Azen/SceneXRay/blob/main/Assets/SceneXRay/CHANGELOG.md" target="_blank" rel="noopener"><span class="ndot"></span>Changelog</a>
-    <a class="ext" href="https://github.com/Azen/SceneXRay/issues" target="_blank" rel="noopener"><span class="ndot"></span>Report an issue</a>
+    <a class="ext" href="https://github.com/AndriiSviatenko/SceneXRay/issues" target="_blank" rel="noopener"><span class="ndot"></span>Report an issue</a>
   </div>
 </nav>
 
@@ -223,24 +221,24 @@ footer{padding:36px 60px 60px;color:var(--text3);font-size:12px}
   <p class="s-desc">Everything runs in the editor. Nothing is compiled into your build, no runtime component is added to any scene, and no package needs installing.</p>
 
   <div class="feat-grid">
-    <div class="feat-card"><div class="feat-ico">🕸️</div><div class="feat-name">Dependency graph</div><div class="feat-desc">GraphView canvas of the loaded scenes. Nodes are objects and assets, edges are references.</div><span class="tag tag-acc">Core</span></div>
-    <div class="feat-card"><div class="feat-ico">🎯</div><div class="feat-name">Drill-in focus</div><div class="feat-desc">Double-click for the ego network of a node. Radius 1–3, direction In / Out / Both.</div><span class="tag tag-acc">Core</span></div>
-    <div class="feat-card"><div class="feat-ico">🧭</div><div class="feat-name">Browser navigation</div><div class="feat-desc">Back / Forward restore camera, page and layout. Breadcrumbs jump to any level.</div><span class="tag tag-acc">Core</span></div>
-    <div class="feat-card"><div class="feat-ico">🎨</div><div class="feat-name">Neighborhood highlight</div><div class="feat-desc">Hover a node: neighbours light up, outgoing edges amber, incoming cyan, the rest dims.</div></div>
-    <div class="feat-card"><div class="feat-ico">📐</div><div class="feat-name">Four layouts</div><div class="feat-desc">Auto, Tree, Force and Radial — switched from the toolbar, remembered per user.</div></div>
-    <div class="feat-card"><div class="feat-ico">💾</div><div class="feat-name">Saved arrangements</div><div class="feat-desc">Arrange the graph your way and keep it per scene, auto-restored on open.</div><span class="tag tag-acc">New</span></div>
-    <div class="feat-card"><div class="feat-ico">↩️</div><div class="feat-name">Undo / Redo</div><div class="feat-desc">32 steps of node moves and re-layouts, on the standard Ctrl+Z / Ctrl+Y.</div><span class="tag tag-acc">New</span></div>
-    <div class="feat-card"><div class="feat-ico">🔬</div><div class="feat-name">Zoom LOD</div><div class="feat-desc">Cards drop detail and grow their titles as you zoom out — still readable at 20%.</div></div>
-    <div class="feat-card"><div class="feat-ico">🧪</div><div class="feat-name">Health score</div><div class="feat-desc">Missing references, dependency cycles and god objects, scored live in the toolbar.</div></div>
-    <div class="feat-card"><div class="feat-ico">🩹</div><div class="feat-name">Fix Missing</div><div class="feat-desc">Every broken reference in one list, with best-effort rebinding by name.</div></div>
-    <div class="feat-card"><div class="feat-ico">🧩</div><div class="feat-name">Inspector strip</div><div class="feat-desc">References / Referenced By cards on GameObjects, prefab assets and ScriptableObjects.</div></div>
-    <div class="feat-card"><div class="feat-ico">🌈</div><div class="feat-name">Scene overlay</div><div class="feat-desc">Dependency lines drawn in the Scene View, colour-coded by link type.</div></div>
-    <div class="feat-card"><div class="feat-ico">🔎</div><div class="feat-name">Global search</div><div class="feat-desc">Find what references any object, across loaded scenes and the project.</div></div>
-    <div class="feat-card"><div class="feat-ico">📌</div><div class="feat-name">Bookmarks</div><div class="feat-desc">Pin objects and jump back later. Ctrl+Shift+Alt+J to toggle, +K to open the list.</div></div>
-    <div class="feat-card"><div class="feat-ico">📸</div><div class="feat-name">Snapshots &amp; diff</div><div class="feat-desc">Checkpoint the graph, compare two snapshots, or diff two scene assets.</div></div>
-    <div class="feat-card"><div class="feat-ico">📤</div><div class="feat-name">Export</div><div class="feat-desc">JSON, CSV, HTML (D3.js), PlantUML, Mermaid, Markdown.</div></div>
-    <div class="feat-card"><div class="feat-ico">🚦</div><div class="feat-name">Build guard + CLI</div><div class="feat-desc">Quality gates in batchmode with a non-zero exit code when the scene is broken.</div></div>
-    <div class="feat-card"><div class="feat-ico">🌍</div><div class="feat-name">Localization</div><div class="feat-desc">English and Ukrainian, switched in Project Settings.</div><span class="tag tag-grey">EN / UA</span></div>
+    <div class="feat-card"><div class="feat-name">Dependency graph</div><div class="feat-desc">GraphView canvas of the loaded scenes. Nodes are objects and assets, edges are references.</div><span class="tag tag-acc">Core</span></div>
+    <div class="feat-card"><div class="feat-name">Drill-in focus</div><div class="feat-desc">Double-click for the ego network of a node. Radius 1–3, direction In / Out / Both.</div><span class="tag tag-acc">Core</span></div>
+    <div class="feat-card"><div class="feat-name">Browser navigation</div><div class="feat-desc">Back / Forward restore camera, page and layout. Breadcrumbs jump to any level.</div><span class="tag tag-acc">Core</span></div>
+    <div class="feat-card"><div class="feat-name">Neighborhood highlight</div><div class="feat-desc">Hover a node: neighbours light up, outgoing edges amber, incoming cyan, the rest dims.</div></div>
+    <div class="feat-card"><div class="feat-name">Four layouts</div><div class="feat-desc">Auto, Tree, Force and Radial — switched from the toolbar, remembered per user.</div></div>
+    <div class="feat-card"><div class="feat-name">Saved arrangements</div><div class="feat-desc">Arrange the graph your way and keep it per scene, auto-restored on open.</div><span class="tag tag-acc">New</span></div>
+    <div class="feat-card"><div class="feat-name">Undo / Redo</div><div class="feat-desc">32 steps of node moves and re-layouts, on the standard Ctrl+Z / Ctrl+Y.</div><span class="tag tag-acc">New</span></div>
+    <div class="feat-card"><div class="feat-name">Zoom LOD</div><div class="feat-desc">Cards drop detail and grow their titles as you zoom out — still readable at 20%.</div></div>
+    <div class="feat-card"><div class="feat-name">Health score</div><div class="feat-desc">Missing references, dependency cycles and god objects, scored live in the toolbar.</div></div>
+    <div class="feat-card"><div class="feat-name">Fix Missing</div><div class="feat-desc">Every broken reference in one list, with best-effort rebinding by name.</div></div>
+    <div class="feat-card"><div class="feat-name">Inspector strip</div><div class="feat-desc">References / Referenced By cards on GameObjects, prefab assets and ScriptableObjects.</div></div>
+    <div class="feat-card"><div class="feat-name">Scene overlay</div><div class="feat-desc">Dependency lines drawn in the Scene View, colour-coded by link type.</div></div>
+    <div class="feat-card"><div class="feat-name">Global search</div><div class="feat-desc">Find what references any object, across loaded scenes and the project.</div></div>
+    <div class="feat-card"><div class="feat-name">Bookmarks</div><div class="feat-desc">Pin objects and jump back later. Ctrl+Shift+Alt+J to toggle, +K to open the list.</div></div>
+    <div class="feat-card"><div class="feat-name">Snapshots &amp; diff</div><div class="feat-desc">Checkpoint the graph, compare two snapshots, or diff two scene assets.</div></div>
+    <div class="feat-card"><div class="feat-name">Export</div><div class="feat-desc">JSON, CSV, HTML (D3.js), PlantUML, Mermaid, Markdown.</div></div>
+    <div class="feat-card"><div class="feat-name">Build guard + CLI</div><div class="feat-desc">Quality gates in batchmode with a non-zero exit code when the scene is broken.</div></div>
+    <div class="feat-card"><div class="feat-name">Localization</div><div class="feat-desc">English and Ukrainian, switched in Project Settings.</div><span class="tag tag-grey">EN / UA</span></div>
   </div>
 </div>
 
@@ -252,7 +250,7 @@ footer{padding:36px 60px 60px;color:var(--text3);font-size:12px}
 
   <div class="steps">
     <div class="step"><div class="step-n">1</div><div><div class="step-title">Drop the folder in</div><div class="step-desc">Copy <span class="inline-code">SceneXRay/</span> anywhere under <span class="inline-code">Assets/</span>. It ships its own assembly definition, so it compiles on its own and never leaks into your runtime assemblies.</div></div></div>
-    <div class="step"><div class="step-n">2</div><div><div class="step-title">Open the graph</div><div class="step-desc"><span class="inline-code">Tools ▸ SceneXRay ▸ Open Graph View</span> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>. The shortcut is rebindable under <span class="inline-code">Edit ▸ Shortcuts ▸ SceneXRay</span>.</div></div></div>
+    <div class="step"><div class="step-n">2</div><div><div class="step-title">Open the graph</div><div class="step-desc"><span class="inline-code">Tools ▸ SceneXRay ▸ Open Graph View</span> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>. The shortcut is rebindable under <span class="inline-code">Edit ▸ Shortcuts ▸ Main Menu</span>.</div></div></div>
     <div class="step"><div class="step-n">3</div><div><div class="step-title">Press Refresh</div><div class="step-desc">Every loaded scene is scanned. Large scenes are paged — raise <span class="inline-code">Max Nodes In Graph</span> in settings if you want more per page.</div></div></div>
   </div>
 
@@ -614,7 +612,7 @@ graph.<span class="method">FrameGraph</span>();   <span class="cmt">// fit every
   <table>
     <tr><th>Symptom</th><th>Cause / fix</th></tr>
     <tr><td>Graph is empty</td><td>Press <strong>Refresh</strong>. If the scene really has no serialized cross-references there is nothing to draw — check with <strong>Selected Only</strong> off.</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> does nothing</td><td>Another tool grabbed the chord. Rebind under <span class="inline-code">Edit ▸ Shortcuts ▸ SceneXRay</span>.</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> does nothing</td><td>Another tool grabbed the chord, or the assembly has not recompiled yet. Check <span class="inline-code">Edit ▸ Shortcuts ▸ Main Menu ▸ Tools/SceneXRay/Open Graph View</span> — conflicts are flagged there, and the chord can be rebound.</td></tr>
     <tr><td>Materials / SOs are missing from the graph</td><td><strong>Scan Asset References</strong> is off, or the asset is a Unity built-in — enable <strong>Include Built-in Assets</strong>.</td></tr>
     <tr><td>Too many nodes to read</td><td>Focus an object instead of showing all, lower <strong>Max Nodes In Graph</strong>, or filter by link type.</td></tr>
     <tr><td>Layout keeps resetting</td><td>Save it: <span class="inline-code">Layout ▸ Save my layout</span> and keep <strong>Auto-restore on open</strong> enabled.</td></tr>
@@ -624,8 +622,8 @@ graph.<span class="method">FrameGraph</span>();   <span class="cmt">// fit every
 </div>
 
 <footer>
-  SceneXRay · <a href="https://github.com/Azen/SceneXRay/blob/main/LICENSE" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">MIT licensed</a>
-  · <a href="https://github.com/Azen/SceneXRay" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">github.com/Azen/SceneXRay</a>
+  SceneXRay · <a href="https://github.com/AndriiSviatenko/SceneXRay/blob/main/LICENSE" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">MIT licensed</a>
+  · <a href="https://github.com/AndriiSviatenko/SceneXRay" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">github.com/AndriiSviatenko/SceneXRay</a>
   <br/>Editor tooling for Unity developers who inherited someone else's scene
 </footer>
 

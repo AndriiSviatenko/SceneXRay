@@ -1,16 +1,12 @@
 <div align="center">
 
-# 🔍 SceneXRay
+# SceneXRay
 
 ### See every dependency in your Unity scene — before it breaks the build
 
-[![Unity](https://img.shields.io/badge/Unity-2022.3%2B-black?logo=unity)](https://unity.com)
-[![Verified](https://img.shields.io/badge/Verified-Unity%206000.0-black?logo=unity)](https://unity.com)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![Dependencies](https://img.shields.io/badge/External%20deps-none-lightgrey)]()
-[![Tests](https://img.shields.io/badge/EditMode%20tests-20-success)]()
+Unity 2022.3+ · verified on Unity 6000.0 · editor-only · no external dependencies · MIT
 
-**[📖 Documentation](https://azen.github.io/SceneXRay/)** · **[📝 Changelog](Assets/SceneXRay/CHANGELOG.md)** · **[🐛 Issues](https://github.com/Azen/SceneXRay/issues)**
+**[Documentation](https://andriisviatenko.github.io/SceneXRay/)** · **[Issues](https://github.com/AndriiSviatenko/SceneXRay/issues)**
 
 </div>
 
@@ -25,8 +21,6 @@ dependency cycles, a health score, and a build guard that fails CI when somethin
 
 No runtime code, no external packages, no services.
 
-<!-- Add screenshots here once captured: docs/img/graph.png, docs/img/health.png, docs/img/inspector.png -->
-
 ---
 
 ## Install
@@ -38,7 +32,7 @@ never leaks into your runtime assemblies.
 **As a sample project** — clone this repo and open it in Unity `6000.0.62f1` or newer:
 
 ```bash
-git clone https://github.com/Azen/SceneXRay.git
+git clone https://github.com/AndriiSviatenko/SceneXRay.git
 ```
 
 There is no bootstrap call, no prefab to drop in a scene, and no settings to fill in.
@@ -59,25 +53,25 @@ There is no bootstrap call, no prefab to drop in a scene, and no settings to fil
 
 | System | What it does |
 |--------|-------------|
-| 🕸️ **Dependency graph** | GraphView canvas of the loaded scenes — nodes are objects, edges are references |
-| 🎯 **Drill-in focus** | Double-click a node for its ego network; radius 1–3, direction In / Out / Both |
-| 🧭 **Browser navigation** | Back / Forward with full camera + layout restore, clickable breadcrumb trail |
-| 🎨 **Neighborhood highlight** | Hover a node — neighbours light up, outgoing edges go amber, incoming cyan, rest dims |
-| 📐 **Four layouts** | Auto · Tree (layered DAG) · Force (packed columns) · Radial (rings around the focus) |
-| 💾 **Saved arrangements** | Arrange the graph your way, save it per scene, auto-restore next time you open it |
-| ↩️ **Undo / Redo** | `Ctrl+Z` / `Ctrl+Y` for node moves and re-layouts, 32 steps deep |
-| 🔬 **Zoom LOD** | Cards shed detail and grow their titles as you zoom out — readable at 20% |
-| 🗺️ **MiniMap** | Draggable, resizable overview of the whole graph |
-| 🧪 **Health score** | Missing references, dependency cycles and god objects, scored live in the toolbar |
-| 🩹 **Fix Missing** | Lists every broken reference and rebinds by name where it can |
-| 🔎 **Global search** | Find what references any object across scenes and the project |
-| 📌 **Bookmarks** | Pin objects for quick jumps — `Ctrl+Shift+Alt+J` to toggle, `…+K` to open |
-| 🧩 **Inspector strip** | References / Referenced By cards on GameObjects, prefab assets and ScriptableObjects |
-| 🌈 **Scene overlay** | Dependency lines drawn in the Scene View, colour-coded by link type |
-| 📸 **Snapshots & diff** | Checkpoint the graph, compare two snapshots, or diff two scene assets |
-| 📤 **Export** | JSON · CSV · HTML (D3.js) · PlantUML · Mermaid · Markdown |
-| 🚦 **Build guard + CLI** | Quality gates in batchmode, non-zero exit code when the scene is broken |
-| 🌍 **Localization** | English + Ukrainian, switchable in Project Settings |
+| **Dependency graph** | GraphView canvas of the loaded scenes — nodes are objects, edges are references |
+| **Drill-in focus** | Double-click a node for its ego network; radius 1–3, direction In / Out / Both |
+| **Browser navigation** | Back / Forward with full camera + layout restore, clickable breadcrumb trail |
+| **Neighborhood highlight** | Hover a node — neighbours light up, outgoing edges go amber, incoming cyan, rest dims |
+| **Four layouts** | Auto · Tree (layered DAG) · Force (packed columns) · Radial (rings around the focus) |
+| **Saved arrangements** | Arrange the graph your way, save it per scene, auto-restore next time you open it |
+| **Undo / Redo** | `Ctrl+Z` / `Ctrl+Y` for node moves and re-layouts, 32 steps deep |
+| **Zoom LOD** | Cards shed detail and grow their titles as you zoom out — readable at 20% |
+| **MiniMap** | Draggable, resizable overview of the whole graph |
+| **Health score** | Missing references, dependency cycles and god objects, scored live in the toolbar |
+| **Fix Missing** | Lists every broken reference and rebinds by name where it can |
+| **Global search** | Find what references any object across scenes and the project |
+| **Bookmarks** | Pin objects for quick jumps — `Ctrl+Shift+Alt+J` to toggle, `…+K` to open |
+| **Inspector strip** | References / Referenced By cards on GameObjects, prefab assets and ScriptableObjects |
+| **Scene overlay** | Dependency lines drawn in the Scene View, colour-coded by link type |
+| **Snapshots & diff** | Checkpoint the graph, compare two snapshots, or diff two scene assets |
+| **Export** | JSON · CSV · HTML (D3.js) · PlantUML · Mermaid · Markdown |
+| **Build guard + CLI** | Quality gates in batchmode, non-zero exit code when the scene is broken |
+| **Localization** | English + Ukrainian, switchable in Project Settings |
 
 ---
 
@@ -98,7 +92,8 @@ There is no bootstrap call, no prefab to drop in a scene, and no settings to fil
 Clicking a node selects the underlying object in the Hierarchy (or pings the asset in the
 Project window), so the Inspector always follows what you are looking at.
 
-Every shortcut is rebindable under `Edit ▸ Shortcuts ▸ SceneXRay`.
+Every shortcut is rebindable under `Edit ▸ Shortcuts` — the in-graph ones under the `SceneXRay`
+category, the window/bookmark chords under `Main Menu`.
 
 ---
 
@@ -156,8 +151,7 @@ Assets/SceneXRay/          the asset — copy this folder into your own project
   Editor/Windows/          graph, search, bookmarks, references, fix-missing, diff
   Editor/Exporters/        JSON · CSV · HTML · PlantUML · Mermaid · Markdown
   Tests/Editor/            20 EditMode tests
-  Documentation~/          offline copy of the documentation page
-docs/index.html            the same page, published via GitHub Pages
+docs/index.html            the documentation page, published via GitHub Pages
 Assets/Scenes/             sample scene for trying the tool
 ```
 

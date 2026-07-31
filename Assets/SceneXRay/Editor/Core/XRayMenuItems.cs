@@ -1,7 +1,6 @@
 using System.Linq;
 using SceneXRay.Editor.Windows;
 using UnityEditor;
-using UnityEditor.ShortcutManagement;
 using UnityEngine;
 using SceneXRay.Editor.UI;
 
@@ -9,7 +8,8 @@ namespace SceneXRay.Editor.Core
 {
     /// <summary>
     /// SceneXRay menus — core items at the top, niche tools under Advanced/.
-    /// Hotkeys via Shortcut Manager (rebindable): Ctrl+Shift+Alt+J / K.
+    /// Hotkeys are MenuItem chords (Ctrl+Shift+Alt+J / K), rebindable under
+    /// Edit > Shortcuts > Main Menu.
     /// </summary>
     public static class XRayMenuItems
     {
@@ -51,13 +51,9 @@ namespace SceneXRay.Editor.Core
         [MenuItem("Tools/SceneXRay/Fix Missing", false, 2)]
         private static void OpenFixMissing() => XRayFixMissingWindow.ShowWindow();
 
-        [MenuItem("Tools/SceneXRay/Toggle Bookmark", false, 3)]
+        // %#&j = Ctrl+Shift+Alt+J — unlikely to collide with Unity/Android defaults.
+        [MenuItem("Tools/SceneXRay/Toggle Bookmark %#&j", false, 3)]
         private static void ToggleBookmarkMenu() => ToggleBookmark();
-
-        // Ctrl+Shift+Alt+J — unlikely to collide with Unity/Android defaults.
-        [Shortcut("SceneXRay/Toggle Bookmark", KeyCode.J,
-            ShortcutModifiers.Action | ShortcutModifiers.Shift | ShortcutModifiers.Alt)]
-        private static void ToggleBookmarkShortcut() => ToggleBookmark();
 
         private static void ToggleBookmark()
         {
@@ -71,13 +67,9 @@ namespace SceneXRay.Editor.Core
                 Debug.Log($"SceneXRay: {msg}");
         }
 
-        [MenuItem("Tools/SceneXRay/Bookmarks", false, 4)]
+        // %#&k = Ctrl+Shift+Alt+K
+        [MenuItem("Tools/SceneXRay/Bookmarks %#&k", false, 4)]
         private static void OpenBookmarksMenu() => XRayBookmarkWindow.ShowWindow();
-
-        // Ctrl+Shift+Alt+K
-        [Shortcut("SceneXRay/Open Bookmarks", KeyCode.K,
-            ShortcutModifiers.Action | ShortcutModifiers.Shift | ShortcutModifiers.Alt)]
-        private static void OpenBookmarksShortcut() => XRayBookmarkWindow.ShowWindow();
 
         [MenuItem("Tools/SceneXRay/Settings", false, 5)]
         private static void OpenSettings() => SettingsService.OpenProjectSettings("Project/SceneXRay");
