@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SceneXRay — Unity dependency graph</title>
+<meta name="description" content="Editor-only Unity tool that draws every serialized reference, UnityEvent target and asset dependency in your scene as an interactive graph — with missing-reference detection, dependency cycles, a health score and a CI build guard."/>
+<meta name="theme-color" content="#000000"/>
+<link rel="canonical" href="https://azen.github.io/SceneXRay/"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="SceneXRay"/>
+<meta property="og:title" content="SceneXRay — Unity dependency graph"/>
+<meta property="og:description" content="See every dependency in your Unity scene — before it breaks the build. Editor-only, no external packages."/>
+<meta property="og:url" content="https://azen.github.io/SceneXRay/"/>
+<meta name="twitter:card" content="summary"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%230d1520'/%3E%3Cpath d='M14 16 L34 12 M14 16 L32 33 M14 34 L32 33' stroke='%233ea6ff' stroke-width='2.4' opacity='.7'/%3E%3Ccircle cx='14' cy='16' r='5' fill='%233ea6ff'/%3E%3Ccircle cx='34' cy='12' r='4.5' fill='%23a57dfa'/%3E%3Ccircle cx='32' cy='33' r='5' fill='%23ffb040'/%3E%3Ccircle cx='14' cy='34' r='4' fill='%234caf6e'/%3E%3C/svg%3E"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --black:#000;--bg1:#0a0a0a;--bg2:#111;--bg3:#1a1a1a;
+  --acc:#3ea6ff;--acc-dim:rgba(62,166,255,.1);--acc-border:rgba(62,166,255,.25);
+  --amber:#ffb040;--purple:#a57dfa;
+  --white:#fff;--text:#e8e8e8;--text2:#888;--text3:#444;--border:#1e1e1e;
+  --green:#4caf6e;--yellow:#f5a623;--red:#e4544e;
+  --font:'Rajdhani',sans-serif;--mono:'JetBrains Mono',monospace;--body:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--black);color:var(--text);font-family:var(--body);font-size:14px;line-height:1.6}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--acc)}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;width:248px;height:100vh;background:var(--bg1);border-right:1px solid var(--border);overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+.nav-top{padding:20px 18px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.nav-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.nav-hex{width:36px;height:36px;flex-shrink:0}
+.nav-brand{font-family:var(--font);font-size:17px;font-weight:700;letter-spacing:.02em;color:var(--white)}
+.nav-brand span{color:var(--acc)}
+.nav-sub{font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;padding-left:46px}
+.nav-links{flex:1;overflow-y:auto;padding:8px 0 16px}
+.nav-group{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);padding:14px 18px 4px}
+nav a{display:flex;align-items:center;gap:8px;padding:5px 18px;color:var(--text2);text-decoration:none;font-size:12.5px;transition:all .12s;border-left:2px solid transparent}
+nav a:hover{color:var(--white);border-left-color:var(--acc);background:rgba(62,166,255,.05)}
+nav a.active{color:var(--acc);border-left-color:var(--acc);background:rgba(62,166,255,.07)}
+.ndot{width:4px;height:4px;border-radius:50%;background:var(--border);flex-shrink:0;transition:.12s}
+nav a:hover .ndot,nav a.active .ndot{background:var(--acc)}
+.nav-foot{border-top:1px solid var(--border);padding:10px 0 12px;flex-shrink:0}
+nav a.ext{color:var(--text3);font-size:12px}
+nav a.ext:hover{color:var(--acc)}
+nav a.ext svg{width:13px;height:13px;flex-shrink:0}
+
+/* ── MAIN ── */
+main{margin-left:248px;min-height:100vh}
+
+/* ── HERO ── */
+.hero{padding:64px 60px 52px;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-100px;right:-60px;width:400px;height:400px;background:radial-gradient(circle,rgba(62,166,255,.08) 0%,transparent 65%);pointer-events:none}
+.hero-icon{width:72px;height:72px;margin-bottom:20px;display:block}
+.hero-tag{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--acc-border);background:var(--acc-dim);border-radius:2px;padding:3px 10px;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);margin-bottom:16px}
+.pulse{width:5px;height:5px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hero h1{font-family:var(--font);font-size:50px;font-weight:700;letter-spacing:-.02em;line-height:1.05;margin-bottom:6px;color:var(--white)}
+.hero h1 em{font-style:normal;color:var(--acc)}
+.hero-sub{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:20px}
+.hero-desc{color:var(--text2);font-size:15px;max-width:600px;line-height:1.7}
+.hero-stats{display:flex;gap:28px;margin-top:26px;flex-wrap:wrap}
+.hstat-n{font-family:var(--font);font-size:24px;font-weight:700;color:var(--white)}
+.hstat-l{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)}
+
+/* ── SECTIONS ── */
+.doc-section{padding:52px 60px;border-bottom:1px solid var(--border)}
+.s-label{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.s-label::before{content:'';display:block;width:10px;height:1px;background:var(--acc)}
+.s-title{font-family:var(--font);font-size:30px;font-weight:700;letter-spacing:-.01em;color:var(--white);margin-bottom:10px}
+.s-desc{color:var(--text2);font-size:14px;max-width:700px;line-height:1.7;margin-bottom:32px}
+h3.sub{font-family:var(--font);font-size:17px;font-weight:600;color:var(--white);margin:30px 0 10px}
+
+/* ── FEATURES ── */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:32px}
+.feat-card{background:var(--bg1);padding:18px 20px;transition:background .12s}
+.feat-card:hover{background:var(--bg2)}
+.feat-ico{font-size:18px;margin-bottom:8px}
+.feat-name{font-family:var(--font);font-size:13px;font-weight:600;color:var(--white);margin-bottom:3px}
+.feat-desc{font-size:12px;color:var(--text2);line-height:1.5}
+.tag{display:inline-block;margin-top:7px;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:2px}
+.tag-acc{background:rgba(62,166,255,.15);color:var(--acc)}
+.tag-grey{background:rgba(255,255,255,.05);color:var(--text3)}
+
+/* ── TABLES ── */
+table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;border:1px solid var(--border);border-radius:4px;overflow:hidden}
+th{background:var(--bg3);color:var(--text3);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:10px 14px}
+td{background:var(--bg1);padding:11px 14px;border-top:1px solid var(--border);color:var(--text2);vertical-align:top}
+td:first-child{color:var(--white);white-space:nowrap}
+td code,.inline-code{font-family:var(--mono);font-size:11.5px;background:var(--bg2);border:1px solid var(--border);padding:1px 6px;border-radius:3px;color:#7eb9ff}
+kbd{font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid #2a2a2a;border-bottom-width:2px;padding:2px 7px;border-radius:4px;color:var(--white);white-space:nowrap}
+
+/* ── CODE ── */
+.ex{margin-bottom:24px}
+.ex-label{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);padding:7px 14px;background:var(--bg2);border:1px solid var(--border);border-bottom:none;border-radius:3px 3px 0 0;display:block}
+.code{background:var(--bg1);border:1px solid var(--border);border-radius:0 0 3px 3px;padding:16px 18px;font-family:var(--mono);font-size:12px;overflow-x:auto;line-height:1.7;color:#ccc;white-space:pre-wrap;word-break:break-word}
+.code-bare{background:var(--bg1);border:1px solid var(--border);border-radius:3px;padding:16px 18px;font-family:var(--mono);font-size:12px;overflow-x:auto;line-height:1.7;color:#ccc;margin-bottom:16px;white-space:pre-wrap}
+.kw{color:var(--acc)}.type{color:#7eb9ff}.str{color:#98c379}
+.cmt{color:#3a3a3a}.method{color:#dcdcaa}.prop{color:#f78c6c}.num{color:#f78c6c}
+
+/* ── CALLOUTS ── */
+.callout{border-left:2px solid var(--acc);background:var(--acc-dim);padding:12px 16px;border-radius:0 4px 4px 0;margin-bottom:20px;font-size:13px;color:var(--text2)}
+.callout strong{color:var(--white)}
+.callout-green{border-left-color:var(--green);background:rgba(76,175,110,.08)}
+.callout-yellow{border-left-color:var(--yellow);background:rgba(245,166,35,.08)}
+
+/* ── STEPS ── */
+.steps{display:flex;flex-direction:column;max-width:720px}
+.step{display:flex;gap:18px;padding:18px 0;border-bottom:1px solid var(--border)}
+.step:last-child{border-bottom:none}
+.step-n{width:26px;height:26px;background:var(--acc);color:#000;font-family:var(--font);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;border-radius:2px;flex-shrink:0;margin-top:1px}
+.step-title{font-family:var(--font);font-size:14px;font-weight:600;color:var(--white);margin-bottom:4px}
+.step-desc{font-size:12.5px;color:var(--text2);line-height:1.6}
+
+/* ── LEGEND / TREE ── */
+.legend{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:22px}
+.lg{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text2)}
+.lg-line{width:26px;height:3px;border-radius:2px}
+.tree{background:var(--bg1);border:1px solid var(--border);border-radius:4px;padding:20px 24px;font-family:var(--mono);font-size:12px;line-height:2;margin-bottom:24px;overflow-x:auto;white-space:pre}
+.tf{color:#f78c6c;font-weight:500}.tc{color:#3a3a3a}
+
+footer{padding:36px 60px 60px;color:var(--text3);font-size:12px}
+
+@media(max-width:900px){
+  nav{position:static;width:100%;height:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .nav-links{display:flex;flex-wrap:wrap;padding:8px}
+  .nav-group{display:none}
+  main{margin-left:0}
+  .hero,.doc-section,footer{padding-left:22px;padding-right:22px}
+  .hero h1{font-size:34px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-top">
+    <div class="nav-logo">
+      <svg class="nav-hex" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="48" height="48" rx="8" fill="#0d1520"/>
+        <circle cx="14" cy="16" r="4" fill="#3ea6ff"/>
+        <circle cx="34" cy="12" r="3.5" fill="#a57dfa"/>
+        <circle cx="32" cy="33" r="4" fill="#ffb040"/>
+        <circle cx="14" cy="34" r="3" fill="#4caf6e"/>
+        <path d="M14 16 L34 12 M14 16 L32 33 M14 34 L32 33" stroke="#3ea6ff" stroke-width="1.6" opacity=".65"/>
+      </svg>
+      <div class="nav-brand">Scene<span>XRay</span></div>
+    </div>
+    <div class="nav-sub">Dependency graph</div>
+  </div>
+  <div class="nav-links">
+    <div class="nav-group">Overview</div>
+    <a href="#features"><span class="ndot"></span>Features</a>
+    <a href="#install"><span class="ndot"></span>Install</a>
+    <a href="#firstrun"><span class="ndot"></span>First run</a>
+
+    <div class="nav-group">Graph</div>
+    <a href="#controls"><span class="ndot"></span>Controls</a>
+    <a href="#focus"><span class="ndot"></span>Focus &amp; history</a>
+    <a href="#layouts"><span class="ndot"></span>Layouts</a>
+    <a href="#saved"><span class="ndot"></span>Saved arrangements</a>
+    <a href="#reading"><span class="ndot"></span>Reading the graph</a>
+
+    <div class="nav-group">Analysis</div>
+    <a href="#scanned"><span class="ndot"></span>What gets scanned</a>
+    <a href="#health"><span class="ndot"></span>Health &amp; missing refs</a>
+    <a href="#inspector"><span class="ndot"></span>Inspector strip</a>
+    <a href="#search"><span class="ndot"></span>Search &amp; bookmarks</a>
+    <a href="#snapshots"><span class="ndot"></span>Snapshots &amp; export</a>
+
+    <div class="nav-group">Reference</div>
+    <a href="#settings"><span class="ndot"></span>Settings</a>
+    <a href="#ci"><span class="ndot"></span>CI / batchmode</a>
+    <a href="#architecture"><span class="ndot"></span>Architecture</a>
+    <a href="#api"><span class="ndot"></span>Public API</a>
+    <a href="#troubleshooting"><span class="ndot"></span>Troubleshooting</a>
+  </div>
+  <div class="nav-foot">
+    <a class="ext" href="https://github.com/Azen/SceneXRay" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      Source on GitHub
+    </a>
+    <a class="ext" href="https://github.com/Azen/SceneXRay/blob/main/Assets/SceneXRay/CHANGELOG.md" target="_blank" rel="noopener"><span class="ndot"></span>Changelog</a>
+    <a class="ext" href="https://github.com/Azen/SceneXRay/issues" target="_blank" rel="noopener"><span class="ndot"></span>Report an issue</a>
+  </div>
+</nav>
+
+<main>
+
+<div class="hero" id="hero">
+  <svg class="hero-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="48" height="48" rx="10" fill="#0d1520"/>
+    <circle cx="14" cy="16" r="4" fill="#3ea6ff"/>
+    <circle cx="34" cy="12" r="3.5" fill="#a57dfa"/>
+    <circle cx="32" cy="33" r="4" fill="#ffb040"/>
+    <circle cx="14" cy="34" r="3" fill="#4caf6e"/>
+    <path d="M14 16 L34 12 M14 16 L32 33 M14 34 L32 33" stroke="#3ea6ff" stroke-width="1.6" opacity=".65"/>
+  </svg>
+  <div class="hero-tag"><span class="pulse"></span>Unity Editor Tool</div>
+  <h1>Scene<em>XRay</em></h1>
+  <div class="hero-sub">Editor-only · no dependencies</div>
+  <p class="hero-desc">See every dependency in your scene — serialized references, UnityEvent targets, ScriptableObjects and materials — as an interactive graph you can drill into, arrange and keep. Plus missing-reference detection, dependency cycles, a health score and a build guard for CI.</p>
+  <div class="hero-stats">
+    <div><div class="hstat-n">47</div><div class="hstat-l">Scripts</div></div>
+    <div><div class="hstat-n">10.1k</div><div class="hstat-l">Lines</div></div>
+    <div><div class="hstat-n">20</div><div class="hstat-l">EditMode tests</div></div>
+    <div><div class="hstat-n">0</div><div class="hstat-l">External deps</div></div>
+    <div><div class="hstat-n">6</div><div class="hstat-l">Export formats</div></div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="doc-section" id="features">
+  <div class="s-label">Overview</div>
+  <div class="s-title">Features</div>
+  <p class="s-desc">Everything runs in the editor. Nothing is compiled into your build, no runtime component is added to any scene, and no package needs installing.</p>
+
+  <div class="feat-grid">
+    <div class="feat-card"><div class="feat-ico">🕸️</div><div class="feat-name">Dependency graph</div><div class="feat-desc">GraphView canvas of the loaded scenes. Nodes are objects and assets, edges are references.</div><span class="tag tag-acc">Core</span></div>
+    <div class="feat-card"><div class="feat-ico">🎯</div><div class="feat-name">Drill-in focus</div><div class="feat-desc">Double-click for the ego network of a node. Radius 1–3, direction In / Out / Both.</div><span class="tag tag-acc">Core</span></div>
+    <div class="feat-card"><div class="feat-ico">🧭</div><div class="feat-name">Browser navigation</div><div class="feat-desc">Back / Forward restore camera, page and layout. Breadcrumbs jump to any level.</div><span class="tag tag-acc">Core</span></div>
+    <div class="feat-card"><div class="feat-ico">🎨</div><div class="feat-name">Neighborhood highlight</div><div class="feat-desc">Hover a node: neighbours light up, outgoing edges amber, incoming cyan, the rest dims.</div></div>
+    <div class="feat-card"><div class="feat-ico">📐</div><div class="feat-name">Four layouts</div><div class="feat-desc">Auto, Tree, Force and Radial — switched from the toolbar, remembered per user.</div></div>
+    <div class="feat-card"><div class="feat-ico">💾</div><div class="feat-name">Saved arrangements</div><div class="feat-desc">Arrange the graph your way and keep it per scene, auto-restored on open.</div><span class="tag tag-acc">New</span></div>
+    <div class="feat-card"><div class="feat-ico">↩️</div><div class="feat-name">Undo / Redo</div><div class="feat-desc">32 steps of node moves and re-layouts, on the standard Ctrl+Z / Ctrl+Y.</div><span class="tag tag-acc">New</span></div>
+    <div class="feat-card"><div class="feat-ico">🔬</div><div class="feat-name">Zoom LOD</div><div class="feat-desc">Cards drop detail and grow their titles as you zoom out — still readable at 20%.</div></div>
+    <div class="feat-card"><div class="feat-ico">🧪</div><div class="feat-name">Health score</div><div class="feat-desc">Missing references, dependency cycles and god objects, scored live in the toolbar.</div></div>
+    <div class="feat-card"><div class="feat-ico">🩹</div><div class="feat-name">Fix Missing</div><div class="feat-desc">Every broken reference in one list, with best-effort rebinding by name.</div></div>
+    <div class="feat-card"><div class="feat-ico">🧩</div><div class="feat-name">Inspector strip</div><div class="feat-desc">References / Referenced By cards on GameObjects, prefab assets and ScriptableObjects.</div></div>
+    <div class="feat-card"><div class="feat-ico">🌈</div><div class="feat-name">Scene overlay</div><div class="feat-desc">Dependency lines drawn in the Scene View, colour-coded by link type.</div></div>
+    <div class="feat-card"><div class="feat-ico">🔎</div><div class="feat-name">Global search</div><div class="feat-desc">Find what references any object, across loaded scenes and the project.</div></div>
+    <div class="feat-card"><div class="feat-ico">📌</div><div class="feat-name">Bookmarks</div><div class="feat-desc">Pin objects and jump back later. Ctrl+Shift+Alt+J to toggle, +K to open the list.</div></div>
+    <div class="feat-card"><div class="feat-ico">📸</div><div class="feat-name">Snapshots &amp; diff</div><div class="feat-desc">Checkpoint the graph, compare two snapshots, or diff two scene assets.</div></div>
+    <div class="feat-card"><div class="feat-ico">📤</div><div class="feat-name">Export</div><div class="feat-desc">JSON, CSV, HTML (D3.js), PlantUML, Mermaid, Markdown.</div></div>
+    <div class="feat-card"><div class="feat-ico">🚦</div><div class="feat-name">Build guard + CLI</div><div class="feat-desc">Quality gates in batchmode with a non-zero exit code when the scene is broken.</div></div>
+    <div class="feat-card"><div class="feat-ico">🌍</div><div class="feat-name">Localization</div><div class="feat-desc">English and Ukrainian, switched in Project Settings.</div><span class="tag tag-grey">EN / UA</span></div>
+  </div>
+</div>
+
+<!-- INSTALL -->
+<div class="doc-section" id="install">
+  <div class="s-label">Getting started</div>
+  <div class="s-title">Install</div>
+  <p class="s-desc">Copy one folder. There is no bootstrap call, no scene setup and no package manifest to edit.</p>
+
+  <div class="steps">
+    <div class="step"><div class="step-n">1</div><div><div class="step-title">Drop the folder in</div><div class="step-desc">Copy <span class="inline-code">SceneXRay/</span> anywhere under <span class="inline-code">Assets/</span>. It ships its own assembly definition, so it compiles on its own and never leaks into your runtime assemblies.</div></div></div>
+    <div class="step"><div class="step-n">2</div><div><div class="step-title">Open the graph</div><div class="step-desc"><span class="inline-code">Tools ▸ SceneXRay ▸ Open Graph View</span> or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>. The shortcut is rebindable under <span class="inline-code">Edit ▸ Shortcuts ▸ SceneXRay</span>.</div></div></div>
+    <div class="step"><div class="step-n">3</div><div><div class="step-title">Press Refresh</div><div class="step-desc">Every loaded scene is scanned. Large scenes are paged — raise <span class="inline-code">Max Nodes In Graph</span> in settings if you want more per page.</div></div></div>
+  </div>
+
+  <div class="callout callout-green" style="margin-top:26px"><strong>Requirements:</strong> Unity 2022.3 LTS or newer (verified on Unity 6000.0). No packages, no third-party libraries, no runtime footprint.</div>
+</div>
+
+<!-- FIRST RUN -->
+<div class="doc-section" id="firstrun">
+  <div class="s-label">Getting started</div>
+  <div class="s-title">First run</div>
+  <p class="s-desc">The window opens on the full graph of the loaded scenes. From there you drill in.</p>
+
+  <div class="ex">
+    <span class="ex-label">Typical loop</span>
+    <div class="code"><span class="cmt">// 1. Something is wrong with an object — find it</span>
+Select it in the Hierarchy → press <span class="kw">Enter</span> in the graph
+
+<span class="cmt">// 2. See exactly who touches it</span>
+Direction <span class="kw">In</span>  → everything that references it
+Direction <span class="kw">Out</span> → everything it depends on
+Radius   <span class="kw">2</span>   → one more hop in each direction
+
+<span class="cmt">// 3. Follow the chain</span>
+Double-click a neighbour → it becomes the new center
+<span class="kw">Backspace</span> → back, with the camera exactly where you left it</div>
+  </div>
+
+  <div class="callout"><strong>Follow mode</strong> in the toolbar keeps the graph focused on whatever you select in the Hierarchy — useful while debugging, noisy while exploring.</div>
+</div>
+
+<!-- CONTROLS -->
+<div class="doc-section" id="controls">
+  <div class="s-label">Graph</div>
+  <div class="s-title">Controls</div>
+  <p class="s-desc">Everything is reachable from the keyboard; the status bar at the bottom always shows the current bindings, node counts and zoom.</p>
+
+  <table>
+    <tr><th>Input</th><th>Action</th></tr>
+    <tr><td><kbd>Double-click</kbd> / <kbd>Enter</kbd></td><td>Focus the node — show its ego network</td></tr>
+    <tr><td><kbd>Backspace</kbd> / <kbd>Alt</kbd>+<kbd>←</kbd></td><td>Back to the previous view (camera and layout restored)</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>→</kbd></td><td>Forward</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Up one level — back, or out of focus into the full graph</td></tr>
+    <tr><td><kbd>=</kbd> / <kbd>−</kbd></td><td>Grow / shrink the focus radius (1–3 hops)</td></tr>
+    <tr><td><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd></td><td>Move the selection between cards, camera follows</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>wheel</kbd></td><td>Zoom · <kbd>MMB drag</kbd> or <kbd>Alt</kbd>+<kbd>drag</kbd> pan</td></tr>
+    <tr><td><kbd>A</kbd> / <kbd>F</kbd></td><td>Fit everything / frame the selection</td></tr>
+    <tr><td><kbd>0</kbd></td><td>Reset zoom to 100%</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo node arrangement</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save this scene's arrangement</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Jump to the search field</td></tr>
+    <tr><td><kbd>Right-click</kbd></td><td>Focus · expand · select in Hierarchy/Project · view references · find missing</td></tr>
+  </table>
+
+  <div class="callout">Selecting a node selects the underlying object in the <strong>Hierarchy</strong> — or pings the asset in the <strong>Project</strong> window — so the Inspector always follows what you are looking at.</div>
+</div>
+
+<!-- FOCUS -->
+<div class="doc-section" id="focus">
+  <div class="s-label">Graph</div>
+  <div class="s-title">Focus &amp; history</div>
+  <p class="s-desc">Focus replaces the full graph with the neighbourhood of one object. History behaves like a browser: every step remembers its camera, page and focus parameters.</p>
+
+  <table>
+    <tr><th>Control</th><th>Meaning</th></tr>
+    <tr><td><strong>R</strong> (1–3)</td><td>How many hops away from the center to include</td></tr>
+    <tr><td><strong>Dir · Both</strong></td><td>Undirected neighbourhood — everything connected</td></tr>
+    <tr><td><strong>Dir · Out</strong></td><td>Only what the center depends on</td></tr>
+    <tr><td><strong>Dir · In</strong></td><td>Only what references the center</td></tr>
+    <tr><td><strong>Breadcrumbs</strong></td><td>All › Player › Weapon — click any level to jump straight back</td></tr>
+    <tr><td><strong>Show All</strong></td><td>Leave focus, restoring the full-graph arrangement you had</td></tr>
+  </table>
+
+  <div class="callout callout-yellow">Focus works on <strong>assets too</strong>. Drill into a ScriptableObject or material node to see every scene object that pulls it in — the same Enter / radius / direction controls apply.</div>
+</div>
+
+<!-- LAYOUTS -->
+<div class="doc-section" id="layouts">
+  <div class="s-label">Graph</div>
+  <div class="s-title">Layouts</div>
+  <p class="s-desc">The <span class="inline-code">Layout</span> menu picks how nodes are placed. The choice is remembered per user, and <span class="inline-code">Re-layout now</span> re-runs it on whatever is on screen.</p>
+
+  <table>
+    <tr><th>Mode</th><th>Best for</th></tr>
+    <tr><td><strong>Auto</strong></td><td>Default — Tree for the full graph, Radial while focused</td></tr>
+    <tr><td><strong>Tree</strong></td><td>Reading direction: layered left→right columns by dependency depth, barycenter-ordered rows</td></tr>
+    <tr><td><strong>Force</strong></td><td>Dense scenes: keeps the columns but hard-packs rows so nothing overlaps</td></tr>
+    <tr><td><strong>Radial</strong></td><td>One object under investigation: rings by hop distance around the center</td></tr>
+  </table>
+</div>
+
+<!-- SAVED -->
+<div class="doc-section" id="saved">
+  <div class="s-label">Graph</div>
+  <div class="s-title">Saved arrangements</div>
+  <p class="s-desc">Automatic layouts are a starting point. Once you have dragged the graph into the shape that matches how you think about the scene, keep it.</p>
+
+  <table>
+    <tr><th>Menu · Layout</th><th>What happens</th></tr>
+    <tr><td>Save my layout <kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Stores every node position for the active scene</td></tr>
+    <tr><td>Restore my layout</td><td>Re-applies it — nodes added since keep their computed position</td></tr>
+    <tr><td>Auto-restore on open</td><td>On by default: reopening the scene brings your arrangement back</td></tr>
+    <tr><td>Delete saved layout</td><td>Forget it and fall back to automatic layouts</td></tr>
+  </table>
+
+  <div class="callout"><strong>Where it lives:</strong> <span class="inline-code">UserSettings/SceneXRay/Layouts/&lt;sceneGUID&gt;.json</span> — personal editor state, outside <span class="inline-code">Assets/</span> and outside version control, and unlike <span class="inline-code">Library/</span> it survives a reimport. Positions are keyed by GlobalObjectId (scene objects) and asset GUID, so they stick across rebuilds of the graph.</div>
+</div>
+
+<!-- READING -->
+<div class="doc-section" id="reading">
+  <div class="s-label">Graph</div>
+  <div class="s-title">Reading the graph</div>
+  <p class="s-desc">Colour carries the link type; position carries the direction; hovering carries the detail.</p>
+
+  <div class="legend">
+    <div class="lg"><span class="lg-line" style="background:#3ea6ff"></span>Direct reference</div>
+    <div class="lg"><span class="lg-line" style="background:#f0c246"></span>UnityEvent</div>
+    <div class="lg"><span class="lg-line" style="background:#a57dfa"></span>Asset reference</div>
+    <div class="lg"><span class="lg-line" style="background:#e4544e"></span>Missing reference</div>
+    <div class="lg"><span class="lg-line" style="background:#ffb040"></span>Hovered — outgoing</div>
+    <div class="lg"><span class="lg-line" style="background:#60c8ff"></span>Hovered — incoming</div>
+  </div>
+
+  <table>
+    <tr><th>On the card</th><th>Meaning</th></tr>
+    <tr><td>Icon + name</td><td>The object or asset the node stands for</td></tr>
+    <tr><td>Second line</td><td>Hierarchy path (or asset folder) — disambiguates same-named objects</td></tr>
+    <tr><td>Blue badge</td><td>Number of links touching this node</td></tr>
+    <tr><td>Left colour bar</td><td>Hierarchy root the object belongs to</td></tr>
+    <tr><td>Amber ring</td><td>Current focus center</td></tr>
+  </table>
+
+  <div class="callout">Layouts run <strong>left → right</strong>: a node's dependencies sit to its right, the things that reference it to its left. Hover any card to colour its outgoing and incoming edges differently.</div>
+</div>
+
+<!-- SCANNED -->
+<div class="doc-section" id="scanned">
+  <div class="s-label">Analysis</div>
+  <div class="s-title">What gets scanned</div>
+  <p class="s-desc">Every visible serialized <span class="inline-code">ObjectReference</span> on every component of every GameObject in the loaded scenes, plus persistent UnityEvent targets found through reflection.</p>
+
+  <table>
+    <tr><th>Link type</th><th>Source</th><th>Example</th></tr>
+    <tr><td><strong>Direct</strong></td><td>serialized GameObject / Component field</td><td><code>PlayerController.visualRoot → Visual</code></td></tr>
+    <tr><td><strong>UnityEvent</strong></td><td>persistent listener target + method</td><td><code>Button.m_OnClick → GameManager.Restart()</code></td></tr>
+    <tr><td><strong>Asset</strong></td><td>any referenced project asset</td><td><code>MeshRenderer → M_Player</code></td></tr>
+    <tr><td><strong>Missing</strong></td><td>reference whose target no longer exists</td><td><code>Spawner.target → Missing</code></td></tr>
+  </table>
+
+  <h3 class="sub">Noise control</h3>
+  <table>
+    <tr><th>Rule</th><th>Why</th></tr>
+    <tr><td>Ignored Components</td><td><code>Transform</code>, <code>RectTransform</code> by default — parenting is not a dependency</td></tr>
+    <tr><td><code>m_Script</code> skipped</td><td>Every MonoBehaviour points at its own script asset; the component name is already on the link</td></tr>
+    <tr><td>Self-references skipped</td><td><code>Button.targetGraphic → Image</code> on the same object is not a link between objects</td></tr>
+    <tr><td>Built-ins excluded</td><td>Opt in with <strong>Include Built-in Assets</strong> if you want <code>Default-Material</code> and friends</td></tr>
+  </table>
+
+  <div class="callout"><strong>Prefabs.</strong> The <span class="inline-code">Prefabs</span> toggle also scans the prefab assets used by instances in the loaded scenes, so a prefab's own internal wiring and its material / clip references show up in the same graph.</div>
+</div>
+
+<!-- HEALTH -->
+<div class="doc-section" id="health">
+  <div class="s-label">Analysis</div>
+  <div class="s-title">Health &amp; missing references</div>
+  <p class="s-desc">The score in the toolbar is a single number for "is this scene wired sanely". Click it for the breakdown.</p>
+
+  <table>
+    <tr><th>Signal</th><th>Meaning</th></tr>
+    <tr><td>Missing references</td><td>Serialized fields pointing at deleted objects — the usual cause of null-refs at runtime</td></tr>
+    <tr><td>Cycles</td><td>A → B → C → A dependency loops, listed with the full path</td></tr>
+    <tr><td>God objects</td><td>Objects with more than 10 links — the usual refactor candidates</td></tr>
+  </table>
+
+  <h3 class="sub">Fix Missing</h3>
+  <p class="s-desc" style="margin-bottom:16px"><span class="inline-code">Tools ▸ SceneXRay ▸ Fix Missing</span> lists every broken reference with its component and property. Selecting a row pings the object; <strong>Fix All</strong> rebinds each one to a scene object whose name matches the property name, which resolves the common "renamed the object, lost the link" case. Everything it changes goes through <span class="inline-code">Undo</span>.</p>
+
+  <div class="callout callout-yellow">Fixing is best-effort by name. Review the result — it is a starting point, not a guarantee.</div>
+</div>
+
+<!-- INSPECTOR -->
+<div class="doc-section" id="inspector">
+  <div class="s-label">Analysis</div>
+  <div class="s-title">Inspector strip</div>
+  <p class="s-desc">The fastest answer to "who uses this?" without leaving the Inspector. Enabled by default, toggled in settings.</p>
+
+  <table>
+    <tr><th>Selected</th><th>You get</th></tr>
+    <tr><td>Scene GameObject</td><td><strong>References</strong> — what it points at · <strong>Referenced By</strong> — what points at it</td></tr>
+    <tr><td>Prefab asset</td><td>What the whole prefab tree references, plus the scene objects using the prefab</td></tr>
+    <tr><td>ScriptableObject / material</td><td><strong>Referenced By</strong> — every scene object that pulls the asset in</td></tr>
+  </table>
+
+  <div class="callout">Each row is a chip: click it to select that object. The <strong>Graph</strong> action opens the graph focused on the thing you are inspecting. Reads come from an incremental reverse index that rebuilds in ~8 ms time slices, so browsing the Project window stays cheap.</div>
+</div>
+
+<!-- SEARCH -->
+<div class="doc-section" id="search">
+  <div class="s-label">Analysis</div>
+  <div class="s-title">Search &amp; bookmarks</div>
+
+  <table>
+    <tr><th>Tool</th><th>Use</th></tr>
+    <tr><td>Toolbar search</td><td>Filter the graph by node name, component type, link type or hierarchy depth</td></tr>
+    <tr><td>Global Search</td><td>Find references to any object across loaded scenes and the project — drag an object in or pick from suggestions</td></tr>
+    <tr><td>Bookmarks</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>J</kbd> pins the selection, <kbd>…</kbd>+<kbd>K</kbd> opens the list. Survives editor restarts via GlobalObjectId</td></tr>
+  </table>
+</div>
+
+<!-- SNAPSHOTS -->
+<div class="doc-section" id="snapshots">
+  <div class="s-label">Analysis</div>
+  <div class="s-title">Snapshots &amp; export</div>
+  <p class="s-desc">Checkpoint the wiring before a refactor, then prove what changed.</p>
+
+  <table>
+    <tr><th>Command</th><th>Result</th></tr>
+    <tr><td>Advanced ▸ Save Snapshot</td><td>Stores nodes, edges and health in <span class="inline-code">Library/SceneXRay/Snapshots</span></td></tr>
+    <tr><td>Advanced ▸ Compare Snapshots</td><td>Health delta plus added / removed edges between the two newest snapshots</td></tr>
+    <tr><td>Advanced ▸ Scene Diff</td><td>Compares the dependency links of two scene assets without opening them</td></tr>
+    <tr><td>Export</td><td>JSON · CSV · HTML (D3.js force graph) · PlantUML · Mermaid · Markdown</td></tr>
+  </table>
+
+  <div class="callout">Mermaid and Markdown output drop straight into a README or a wiki page — handy for documenting how a scene is wired without screenshots that go stale.</div>
+</div>
+
+<!-- SETTINGS -->
+<div class="doc-section" id="settings">
+  <div class="s-label">Reference</div>
+  <div class="s-title">Settings</div>
+  <p class="s-desc"><span class="inline-code">Project Settings ▸ SceneXRay</span>. Stored in <span class="inline-code">ProjectSettings/SceneXRaySettings.asset</span>, so the team shares them.</p>
+
+  <table>
+    <tr><th>Group</th><th>Setting</th><th>Effect</th></tr>
+    <tr><td>Overlay</td><td>Enable / Animate</td><td>Dependency lines drawn in the Scene View for the selected object</td></tr>
+    <tr><td>Colors</td><td>Direct · UnityEvent · Missing · Asset · Line Width</td><td>Applies to both the overlay and the graph edges, live — no refresh needed</td></tr>
+    <tr><td>Inspector</td><td>Inspector Integration</td><td>The References / Referenced By strip</td></tr>
+    <tr><td>Graph</td><td>Max Nodes In Graph</td><td>Page size for very large scenes</td></tr>
+    <tr><td>Scanning</td><td>Ignored Components</td><td>Component types the scanner skips entirely</td></tr>
+    <tr><td>Scanning</td><td>Scan Asset References</td><td>Record links to project assets (materials, clips, ScriptableObjects…)</td></tr>
+    <tr><td>Scanning</td><td>Include Built-in Assets</td><td>Also record Unity's built-ins — noisy, off by default</td></tr>
+    <tr><td>Build</td><td>Build Guard · Fail Build On Missing Refs</td><td>Block a build when the scene has broken references</td></tr>
+    <tr><td>Language</td><td>English / Українська</td><td>Editor UI language</td></tr>
+  </table>
+
+  <div class="callout callout-green">Changing a <strong>Scanning</strong> setting invalidates the cache, rebuilds the reference index and refreshes the graph immediately — what you see always matches what is configured.</div>
+</div>
+
+<!-- CI -->
+<div class="doc-section" id="ci">
+  <div class="s-label">Reference</div>
+  <div class="s-title">CI / batchmode</div>
+  <p class="s-desc">Run the same analysis headlessly and fail the pipeline on broken wiring.</p>
+
+  <div class="ex">
+    <span class="ex-label">Command</span>
+    <div class="code">Unity -batchmode -quit -projectPath . \
+      -executeMethod <span class="type">SceneXRay.Editor.Core.CommandLine</span>.<span class="method">ScanScene</span> \
+      -scene Assets/Scenes/Main.unity \
+      -output dependencies.json</div>
+  </div>
+
+  <table>
+    <tr><th>Behaviour</th><th>Detail</th></tr>
+    <tr><td>Output</td><td>Every link as JSON: source path, target, property, component, link type</td></tr>
+    <tr><td>Exit code</td><td><code>0</code> clean · <code>1</code> when a quality gate fails or the scene is missing</td></tr>
+    <tr><td>Build guard</td><td>Independently blocks local builds when <strong>Fail Build On Missing Refs</strong> is on</td></tr>
+  </table>
+</div>
+
+<!-- ARCHITECTURE -->
+<div class="doc-section" id="architecture">
+  <div class="s-label">Reference</div>
+  <div class="s-title">Architecture</div>
+  <p class="s-desc">Two editor-only assemblies, four namespaces, no external references.</p>
+
+  <div class="tree"><span class="tc">SceneXRay/</span>
+├── <span class="tf">Editor/</span>
+│   ├── <span class="tf">Core/</span>          <span class="tc">SceneXRay.Editor.Core — scanning, index, analysis, storage</span>
+│   │   SceneScanner · PrefabScanner · XRayReferenceIndex · XRayAnalyzer
+│   │   XRayLayoutStore · XRayCacheManager · SnapshotManager · XRayBookmarks
+│   │   QualityGate · BuildGuard · CommandLine · SceneXRaySettings
+│   ├── <span class="tf">UI/</span>            <span class="tc">SceneXRay.Editor.UI — graph canvas and editor UI</span>
+│   │   XRayVirtualGraphView (+ XRayGraphInteraction) · XRayNode · XRayEdge
+│   │   XRayInspectorIntegration · XRayOverlay · XRayHealthScoreUI · XRayLocalization
+│   ├── <span class="tf">Windows/</span>       <span class="tc">SceneXRay.Editor.Windows — EditorWindows</span>
+│   │   XRayWindow · GlobalSearch · Bookmarks · References · FixMissing · SceneDiff · Tutorial
+│   ├── <span class="tf">Exporters/</span>     <span class="tc">SceneXRay.Editor.Exporters — JSON/CSV/HTML/UML/Mermaid/MD</span>
+│   ├── <span class="tf">Styles/</span>        <span class="tc">XRayStyles.uss — dark + light skins</span>
+│   └── SceneXRay.Editor.asmdef
+└── <span class="tf">Tests/Editor/</span>      <span class="tc">SceneXRay.Editor.Tests —  EditMode tests</span></div>
+
+  <table>
+    <tr><th>Assembly</th><th>Platforms</th><th>References</th></tr>
+    <tr><td><code>SceneXRay.Editor</code></td><td>Editor only</td><td>none · <code>autoReferenced: false</code></td></tr>
+    <tr><td><code>SceneXRay.Editor.Tests</code></td><td>Editor only</td><td>SceneXRay.Editor · gated by <code>UNITY_INCLUDE_TESTS</code></td></tr>
+  </table>
+
+  <h3 class="sub">Where data is written</h3>
+  <table>
+    <tr><th>Path</th><th>Content</th></tr>
+    <tr><td><code>ProjectSettings/SceneXRaySettings.asset</code></td><td>Shared team settings</td></tr>
+    <tr><td><code>UserSettings/SceneXRay/Layouts/</code></td><td>Your saved graph arrangements</td></tr>
+    <tr><td><code>Library/SceneXRay/</code></td><td>Scan cache, snapshots, bookmarks, tags</td></tr>
+  </table>
+  <div class="callout callout-green">Nothing SceneXRay writes ends up in version control, and nothing is written into <span class="inline-code">Assets/</span> at runtime.</div>
+</div>
+
+<!-- API -->
+<div class="doc-section" id="api">
+  <div class="s-label">Reference</div>
+  <div class="s-title">Public API</div>
+  <p class="s-desc">The tool is UI-first, but the scanning and graph layers are plain static classes you can drive from your own editor scripts.</p>
+
+  <div class="ex">
+    <span class="ex-label">Scanning</span>
+    <div class="code"><span class="kw">using</span> <span class="type">SceneXRay.Editor.Core</span>;
+
+<span class="cmt">// One object, the loaded scenes, or a prefab tree</span>
+List&lt;<span class="type">DependencyLink</span>&gt; links = <span class="type">SceneScanner</span>.<span class="method">ScanGameObject</span>(go);
+List&lt;<span class="type">DependencyLink</span>&gt; all   = <span class="type">SceneScanner</span>.<span class="method">ScanAllGameObjects</span>();
+List&lt;<span class="type">DependencyLink</span>&gt; pf    = <span class="type">PrefabScanner</span>.<span class="method">ScanPrefab</span>(prefabAsset);
+
+<span class="cmt">// Reverse index — cached, never scans on read</span>
+<span class="kw">var</span> incoming = <span class="type">XRayReferenceIndex</span>.<span class="method">GetIncoming</span>(go);
+<span class="kw">var</span> outgoing = <span class="type">XRayReferenceIndex</span>.<span class="method">GetOutgoing</span>(go);
+<span class="kw">var</span> users    = <span class="type">XRayReferenceIndex</span>.<span class="method">GetIncomingForAsset</span>(scriptableObject);
+
+<span class="cmt">// Health report: score, missing, cycles, god objects</span>
+<span class="type">HealthReport</span> report = <span class="type">XRayAnalyzer</span>.<span class="method">Analyze</span>(all);</div>
+  </div>
+
+  <div class="ex">
+    <span class="ex-label">Opening the graph from your own tool</span>
+    <div class="code"><span class="kw">using</span> <span class="type">SceneXRay.Editor.Windows</span>;
+
+<span class="type">XRayWindow</span>.<span class="method">ShowWindow</span>();                        <span class="cmt">// just open it</span>
+<span class="type">XRayWindow</span>.<span class="method">ShowWindowFocused</span>(gameObject);        <span class="cmt">// open focused on an object</span>
+<span class="type">XRayWindow</span>.<span class="method">ShowWindowFocusedAsset</span>(scriptableObject); <span class="cmt">// …or on an asset</span></div>
+  </div>
+
+  <div class="ex">
+    <span class="ex-label">Driving the graph view</span>
+    <div class="code"><span class="kw">var</span> graph = EditorWindow.GetWindow&lt;<span class="type">XRayWindow</span>&gt;().GraphView;
+
+graph.<span class="method">FocusOn</span>(go, radius: <span class="num">2</span>, direction: <span class="type">FocusDirection</span>.Incoming);
+graph.<span class="method">FocusOnAsset</span>(asset);
+graph.<span class="method">SetLayoutMode</span>(<span class="type">XRayLayoutMode</span>.Radial);
+graph.<span class="method">SaveLayout</span>();   graph.<span class="method">RestoreLayout</span>();
+graph.<span class="method">UndoLayoutChange</span>();
+graph.<span class="method">FrameGraph</span>();   <span class="cmt">// fit everything, animated</span></div>
+  </div>
+</div>
+
+<!-- TROUBLESHOOTING -->
+<div class="doc-section" id="troubleshooting">
+  <div class="s-label">Reference</div>
+  <div class="s-title">Troubleshooting</div>
+
+  <table>
+    <tr><th>Symptom</th><th>Cause / fix</th></tr>
+    <tr><td>Graph is empty</td><td>Press <strong>Refresh</strong>. If the scene really has no serialized cross-references there is nothing to draw — check with <strong>Selected Only</strong> off.</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> does nothing</td><td>Another tool grabbed the chord. Rebind under <span class="inline-code">Edit ▸ Shortcuts ▸ SceneXRay</span>.</td></tr>
+    <tr><td>Materials / SOs are missing from the graph</td><td><strong>Scan Asset References</strong> is off, or the asset is a Unity built-in — enable <strong>Include Built-in Assets</strong>.</td></tr>
+    <tr><td>Too many nodes to read</td><td>Focus an object instead of showing all, lower <strong>Max Nodes In Graph</strong>, or filter by link type.</td></tr>
+    <tr><td>Layout keeps resetting</td><td>Save it: <span class="inline-code">Layout ▸ Save my layout</span> and keep <strong>Auto-restore on open</strong> enabled.</td></tr>
+    <tr><td>Inspector strip missing</td><td><strong>Inspector Integration</strong> is off in settings, or the object has no links.</td></tr>
+    <tr><td>Stale data after editing the scene</td><td>Enable <strong>Live Mode</strong>, or press Refresh — the index rebuilds on a debounce.</td></tr>
+  </table>
+</div>
+
+<footer>
+  SceneXRay · <a href="https://github.com/Azen/SceneXRay/blob/main/LICENSE" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">MIT licensed</a>
+  · <a href="https://github.com/Azen/SceneXRay" target="_blank" rel="noopener" style="color:var(--acc);text-decoration:none">github.com/Azen/SceneXRay</a>
+  <br/>Editor tooling for Unity developers who inherited someone else's scene
+</footer>
+
+</main>
+
+<script>
+// Anchor links only — the external repo links must not reach querySelector().
+const links = [...document.querySelectorAll('nav a[href^="#"]')];
+const sections = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const onScroll = () => {
+  let current = sections[0];
+  for (const s of sections) if (s.getBoundingClientRect().top <= 120) current = s;
+  links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current.id));
+};
+document.addEventListener('scroll', onScroll, {passive:true});
+onScroll();
+</script>
+</body>
+</html>

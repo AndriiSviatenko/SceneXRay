@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &1
+MonoBehaviour:
+  m_ObjectHideFlags: 53
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9afcef867fa1dba4d99e3200b7b71457, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  EnableXRayOverlay: 1
+  AnimateOverlay: 1
+  DirectColor: {r: 0.24, g: 0.58, b: 0.88, a: 1}
+  EventColor: {r: 0.95, g: 0.67, b: 0.22, a: 1}
+  MissingColor: {r: 0.9, g: 0.32, b: 0.32, a: 1}
+  AssetColor: {r: 0.98039216, g: 0.49019608, b: 0.8029208, a: 1}
+  LineWidth: 2
+  EnableInspectorIntegration: 1
+  MaxNodesInGraph: 500
+  IgnoredComponents:
+  - Transform
+  - RectTransform
+  ScanAssetReferences: 1
+  IncludeBuiltInAssets: 0
+  EnableBuildGuard: 1
+  FailBuildOnMissingReferences: 0

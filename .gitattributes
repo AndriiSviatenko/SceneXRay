@@ -1,0 +1,32 @@
+# Normalize line endings — Unity YAML and C# stay LF in the repo.
+* text=auto
+
+*.cs        text diff=csharp
+*.md        text
+*.uss       text
+*.uxml      text
+*.json      text
+*.html      text
+*.yml       text
+
+# Unity YAML assets — enable UnityYAMLMerge (see ProjectSettings > Editor > Asset Serialization: Force Text)
+*.unity          merge=unityyamlmerge eol=lf
+*.prefab         merge=unityyamlmerge eol=lf
+*.asset          merge=unityyamlmerge eol=lf
+*.mat            merge=unityyamlmerge eol=lf
+*.anim           merge=unityyamlmerge eol=lf
+*.controller     merge=unityyamlmerge eol=lf
+*.meta           merge=unityyamlmerge eol=lf
+*.inputactions   text eol=lf
+
+# Binary — never diff, never normalize
+*.png  binary
+*.jpg  binary
+*.gif  binary
+*.psd  binary
+*.fbx  binary
+*.wav  binary
+*.mp3  binary
+*.ttf  binary
+*.otf  binary
+*.dll  binary

@@ -1,0 +1,97 @@
+using SceneXRay.Editor.Windows;
+using UnityEditor;
+using UnityEngine;
+
+namespace SceneXRay.Editor.Core
+{
+    /// <summary>Project Settings &gt; SceneXRay page backed by <see cref="SceneXRaySettings"/>.</summary>
+    public static class SceneXRaySettingsProvider
+    {
+        [SettingsProvider]
+        public static SettingsProvider Create()
+        {
+            return new SettingsProvider("Project/SceneXRay", SettingsScope.Project)
+            {
+                label = "SceneXRay",
+                keywords = new[] { "xray", "dependency", "scene", "overlay", "graph", "missing", "reference" },
+                guiHandler = _ =>
+                {
+                    var settings = SceneXRaySettings.instance;
+                    EditorGUI.BeginChangeCheck();
+
+                    EditorGUILayout.LabelField("Overlay", EditorStyles.boldLabel);
+                    settings.EnableXRayOverlay = EditorGUILayout.Toggle("Enable Scene Overlay", settings.EnableXRayOverlay);
+                    settings.AnimateOverlay = EditorGUILayout.Toggle("Animate Overlay", settings.AnimateOverlay);
+
+                    EditorGUILayout.Space(8);
+                    EditorGUILayout.LabelField("Colors", EditorStyles.boldLabel);
+                    EditorGUILayout.HelpBox("Applies to both the Scene View overlay and the graph edges.", MessageType.None);
+                    settings.DirectColor = EditorGUILayout.ColorField("Direct", settings.DirectColor);
+                    settings.EventColor = EditorGUILayout.ColorField("UnityEvent", settings.EventColor);
+                    settings.MissingColor = EditorGUILayout.ColorField("Missing", settings.MissingColor);
+                    settings.AssetColor = EditorGUILayout.ColorField("Asset", settings.AssetColor);
+                    settings.LineWidth = EditorGUILayout.Slider("Line Width", settings.LineWidth, 0.5f, 5f);
+
+                    if (GUILayout.Button("Reset Colors To Defaults", GUILayout.Width(200)))
+                    {
+                        settings.DirectColor = new Color(0.24f, 0.58f, 0.88f);
+                        settings.EventColor = new Color(0.95f, 0.67f, 0.22f);
+                        settings.MissingColor = new Color(0.9f, 0.32f, 0.32f);
+                        settings.AssetColor = new Color(0.65f, 0.49f, 0.98f);
+                        settings.LineWidth = 2f;
+                        GUI.changed = true;
+                    }
+
+                    EditorGUILayout.Space(8);
+                    EditorGUILayout.LabelField("Inspector", EditorStyles.boldLabel);
+                    settings.EnableInspectorIntegration = EditorGUILayout.Toggle("Inspector Integration", settings.EnableInspectorIntegration);
+
+                    EditorGUILayout.Space(8);
+                    EditorGUILayout.LabelField("Graph", EditorStyles.boldLabel);
+                    settings.MaxNodesInGraph = EditorGUILayout.IntField("Max Nodes In Graph", settings.MaxNodesInGraph);
+
+                    EditorGUILayout.Space(8);
+                    EditorGUILayout.LabelField("Scanning", EditorStyles.boldLabel);
+                    EditorGUILayout.LabelField("Ignored Components (comma-separated):");
+                    string joined = string.Join(",", settings.IgnoredComponents);
+                    string edited = EditorGUILayout.TextField(joined);
+                    if (edited != joined)
+                    {
+                        settings.IgnoredComponents.Clear();
+                        foreach (var part in edited.Split(','))
+                        {
+                            var trimmed = part.Trim();
+                            if (trimmed.Length > 0) settings.IgnoredComponents.Add(trimmed);
+                        }
+                    }
+
+                    settings.ScanAssetReferences = EditorGUILayout.Toggle(
+                        new GUIContent("Scan Asset References",
+                            "Record links to project assets: materials, meshes, clips, ScriptableObjects, textures…"),
+                        settings.ScanAssetReferences);
+                    using (new EditorGUI.DisabledScope(!settings.ScanAssetReferences))
+                    {
+                        settings.IncludeBuiltInAssets = EditorGUILayout.Toggle(
+                            new GUIContent("Include Built-in Assets",
+                                "Also record Unity's built-in resources (Default-Material, built-in meshes/fonts). Noisy."),
+                            settings.IncludeBuiltInAssets);
+                    }
+
+                    EditorGUILayout.Space(8);
+                    EditorGUILayout.LabelField("Build", EditorStyles.boldLabel);
+                    settings.EnableBuildGuard = EditorGUILayout.Toggle("Enable Build Guard", settings.EnableBuildGuard);
+                    settings.FailBuildOnMissingReferences = EditorGUILayout.Toggle("Fail Build On Missing Refs", settings.FailBuildOnMissingReferences);
+
+                    EditorGUILayout.Space(8);
+                    EditorGUILayout.LabelField("Language", EditorStyles.boldLabel);
+                    var lang = (UI.XRayLocalization.Language)EditorGUILayout.EnumPopup("Editor Language", UI.XRayLocalization.CurrentLanguage);
+                    if (lang != UI.XRayLocalization.CurrentLanguage)
+                        UI.XRayLocalization.SetLanguage(lang);
+
+                    if (EditorGUI.EndChangeCheck())
+                        settings.Save();
+                }
+            };
+        }
+    }
+}

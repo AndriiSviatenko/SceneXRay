@@ -1,0 +1,1077 @@
+/* ============================================================
+   SceneXRay graph styles.
+   Root gets .xray-dark or .xray-light depending on the editor skin.
+   UI Toolkit does not support box-shadow / text-shadow / filter —
+   depth is faked with border colors and layered backgrounds.
+   Edge colors use the GraphView custom properties --edge-color /
+   --edge-width, which Edge reads natively.
+   ============================================================ */
+
+/* ===== Graph background + grid ===== */
+.xray-dark .unity-graph-view {
+    background-color: rgb(18, 19, 24);
+}
+
+.xray-light .unity-graph-view {
+    background-color: rgb(214, 215, 220);
+}
+
+.xray-dark GridBackground {
+    --grid-background-color: rgb(18, 19, 24);
+    --line-color: rgba(255, 255, 255, 0.025);
+    --thick-line-color: rgba(255, 255, 255, 0.05);
+    --spacing: 24;
+}
+
+.xray-light GridBackground {
+    --grid-background-color: rgb(214, 215, 220);
+    --line-color: rgba(0, 0, 0, 0.04);
+    --thick-line-color: rgba(0, 0, 0, 0.08);
+    --spacing: 24;
+}
+
+/* ===== Nodes: compact cards ===== */
+.graph-node {
+    border-radius: 10px;
+    border-width: 1px;
+    min-width: 190px;
+    max-width: 260px;
+    transition-property: border-color, opacity;
+    transition-duration: 0.12s, 0.14s;
+}
+
+.graph-node #node-border {
+    border-radius: 10px;
+    border-width: 0;
+}
+
+.graph-node #title {
+    height: 30px;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.graph-node #node-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    align-self: center;
+}
+
+.graph-node #title-label {
+    font-size: 13px;
+    -unity-font-style: bold;
+    margin: 0;
+    padding: 0 4px;
+    -unity-text-align: middle-left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+}
+
+.graph-node #count-badge {
+    font-size: 9px;
+    -unity-text-align: middle-center;
+    align-self: center;
+    min-width: 18px;
+    padding: 1px 5px;
+    margin-left: 4px;
+    border-radius: 9px;
+    color: rgb(235, 240, 250);
+    background-color: rgba(88, 128, 240, 0.7);
+}
+
+/* Second line: hierarchy path — disambiguates same-named objects. */
+.graph-node #node-subtitle {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 9px;
+    margin: 0;
+    padding: 0 2px;
+    -unity-text-align: middle-left;
+    align-self: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Slim ports strip under the title. */
+.graph-node #contents #top {
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 18px;
+}
+
+.graph-node #contents #divider {
+    display: none;
+}
+
+.graph-node .unity-port {
+    height: 18px;
+    padding: 0;
+}
+
+/* ---- Dark palette ---- */
+.xray-dark .graph-node {
+    background-color: rgb(34, 36, 44);
+    border-color: rgb(58, 61, 74);
+}
+
+.xray-dark .graph-node #title {
+    background-color: rgb(50, 53, 65);
+}
+
+.xray-dark .graph-node #title-label {
+    color: rgb(230, 233, 242);
+}
+
+.xray-dark .graph-node #node-subtitle {
+    color: rgba(175, 182, 200, 0.75);
+}
+
+.xray-dark .graph-node:hover {
+    border-color: rgb(120, 160, 255);
+}
+
+/* ---- Light palette ---- */
+.xray-light .graph-node {
+    background-color: rgb(243, 243, 247);
+    border-color: rgb(168, 168, 178);
+}
+
+.xray-light .graph-node #title {
+    background-color: rgb(224, 224, 232);
+}
+
+.xray-light .graph-node #title-label {
+    color: rgb(28, 28, 38);
+}
+
+.xray-light .graph-node #node-subtitle {
+    color: rgba(80, 84, 100, 0.85);
+}
+
+.xray-light .graph-node:hover {
+    border-color: rgb(60, 110, 220);
+}
+
+.graph-node:selected {
+    border-color: rgb(90, 190, 255);
+    border-width: 2px;
+}
+
+/* ===== Neighborhood highlight (hover / selection) =====
+   Skin prefix is required: it must out-specify `.xray-dark .graph-node:hover`. */
+.xray-dark .graph-node.xray-hl,
+.xray-light .graph-node.xray-hl {
+    border-color: rgb(255, 205, 80);
+    border-width: 2px;
+}
+
+.xray-dark .graph-node.xray-near,
+.xray-light .graph-node.xray-near {
+    border-color: rgb(120, 190, 255);
+}
+
+.xray-dim {
+    opacity: 0.16;
+}
+
+.graph-node.xray-dim {
+    opacity: 0.2;
+}
+
+/* Edges leaving / entering the highlighted node. */
+.xray-edge-out {
+    --edge-width: 3;
+    --edge-color: rgb(255, 176, 64);
+}
+
+.xray-edge-in {
+    --edge-width: 3;
+    --edge-color: rgb(96, 200, 255);
+}
+
+/* ===== Zoom LOD — stay readable when zoomed out ===== */
+.xray-zoom-mid .graph-node #node-subtitle {
+    display: none;
+}
+
+.xray-zoom-far .graph-node #node-subtitle,
+.xray-zoom-far .graph-node #count-badge {
+    display: none;
+}
+
+.xray-zoom-far .graph-node #title {
+    height: 44px;
+}
+
+.xray-zoom-far .graph-node #title-label {
+    font-size: 22px;
+}
+
+.xray-zoom-far .graph-node #node-icon {
+    width: 26px;
+    height: 26px;
+}
+
+/* ===== Node type variants (colored title strip) ===== */
+.xray-dark .graph-node.missing-node #title { background-color: rgb(96, 40, 40); }
+.xray-dark .graph-node.missing-node { border-color: rgb(220, 85, 85); }
+.xray-light .graph-node.missing-node #title { background-color: rgb(240, 205, 205); }
+.xray-light .graph-node.missing-node { border-color: rgb(200, 60, 60); }
+
+.xray-dark .graph-node.high-dependency #title { background-color: rgb(88, 52, 26); }
+.xray-dark .graph-node.high-dependency { border-color: rgb(240, 150, 60); }
+.xray-light .graph-node.high-dependency #title { background-color: rgb(245, 225, 200); }
+.xray-light .graph-node.high-dependency { border-color: rgb(215, 130, 40); }
+
+.xray-dark .graph-node.prefab-node #title { background-color: rgb(30, 60, 86); }
+.xray-dark .graph-node.prefab-node { border-color: rgb(80, 180, 250); }
+.xray-light .graph-node.prefab-node #title { background-color: rgb(208, 228, 245); }
+.xray-light .graph-node.prefab-node { border-color: rgb(50, 140, 210); }
+
+.xray-dark .graph-node.asset-node #title { background-color: rgb(56, 42, 88); }
+.xray-dark .graph-node.asset-node { border-color: rgb(165, 125, 250); }
+.xray-light .graph-node.asset-node #title { background-color: rgb(226, 216, 245); }
+.xray-light .graph-node.asset-node { border-color: rgb(120, 90, 210); }
+
+/* Focus center gets the strongest accent. */
+.graph-node.focus-center {
+    border-color: rgb(255, 200, 60);
+    border-width: 2px;
+}
+
+/* ===== Ports ===== */
+.graph-node .unity-port {
+    --port-color: rgb(120, 120, 140);
+}
+
+.graph-node .input-port {
+    --port-color: rgb(70, 160, 255);
+}
+
+.graph-node .output-port {
+    --port-color: rgb(255, 180, 70);
+}
+
+/* ===== Edges (GraphView custom properties) ===== */
+.direct-edge {
+    --edge-width: 2;
+    --edge-color: rgb(96, 150, 220);
+}
+
+.unityevent-edge {
+    --edge-width: 2;
+    --edge-color: rgb(230, 195, 70);
+}
+
+.missing-edge {
+    --edge-width: 3;
+    --edge-color: rgb(235, 80, 80);
+}
+
+.asset-edge {
+    --edge-width: 2;
+    --edge-color: rgb(165, 125, 250);
+}
+
+.xray-light .direct-edge {
+    --edge-color: rgb(50, 100, 180);
+}
+
+.xray-light .unityevent-edge {
+    --edge-color: rgb(180, 140, 20);
+}
+
+.xray-light .missing-edge {
+    --edge-color: rgb(200, 50, 50);
+}
+
+.xray-light .asset-edge {
+    --edge-color: rgb(120, 90, 210);
+}
+
+/* ===== Health score widget (window toolbar row) ===== */
+.xray-health {
+    flex-direction: row;
+    align-items: center;
+    height: 22px;
+    padding: 0 10px;
+    flex-shrink: 0;
+}
+
+.xray-health__score {
+    font-size: 11px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+}
+
+.xray-dark .xray-health__score { color: rgb(210, 216, 230); }
+.xray-light .xray-health__score { color: rgb(35, 38, 50); }
+
+.xray-health__bar {
+    width: 110px;
+    height: 14px;
+    margin-left: 8px;
+    border-radius: 7px;
+    overflow: hidden;
+}
+
+/* ProgressBar internals: flatten the default chrome, keep the rounded pill. */
+.xray-health__bar .unity-progress-bar__background {
+    border-radius: 7px;
+    border-width: 1px;
+}
+
+.xray-dark .xray-health__bar .unity-progress-bar__background {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.xray-light .xray-health__bar .unity-progress-bar__background {
+    background-color: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.12);
+}
+
+.xray-health__bar .unity-progress-bar__progress {
+    border-radius: 6px;
+    margin: 1px;
+}
+
+.xray-health__bar .unity-progress-bar__title {
+    font-size: 9px;
+    -unity-font-style: bold;
+    color: rgb(245, 247, 252);
+}
+
+.xray-health.is-good .unity-progress-bar__progress { background-color: rgb(76, 175, 110); }
+.xray-health.is-warn .unity-progress-bar__progress { background-color: rgb(230, 190, 60); }
+.xray-health.is-bad  .unity-progress-bar__progress { background-color: rgb(226, 82, 82); }
+
+.xray-health__details {
+    font-size: 10px;
+    margin-left: 8px;
+    -unity-text-align: middle-left;
+}
+
+.xray-dark .xray-health__details { color: rgb(150, 156, 172); }
+.xray-light .xray-health__details { color: rgb(96, 100, 116); }
+
+.xray-health__details.is-clean {
+    -unity-font-style: bold;
+    color: rgb(76, 175, 110);
+}
+
+/* ===== Window toolbar (filters row) ===== */
+.xray-window-toolbar {
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.xray-window-toolbar .unity-base-field {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.xray-window-toolbar .unity-toolbar-toggle {
+    padding-left: 7px;
+    padding-right: 7px;
+}
+
+/* ===== In-graph toolbar ===== */
+.xray-graph-toolbar {
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.xray-graph-toolbar .xray-nav-btn {
+    min-width: 24px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.xray-graph-toolbar .xray-field-label {
+    -unity-text-align: middle-center;
+    margin-left: 4px;
+    margin-right: 2px;
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.xray-layout-menu {
+    min-width: 110px;
+}
+
+/* Breadcrumb trail — each crumb jumps back to that focus level. */
+.xray-breadcrumbs {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    margin-left: 6px;
+}
+
+.xray-dark .xray-breadcrumbs {
+    color: rgb(255, 205, 90);
+}
+
+.xray-light .xray-breadcrumbs {
+    color: rgb(150, 100, 0);
+}
+
+/* ===== Empty-state hint ===== */
+.empty-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 40%;
+    -unity-text-align: middle-center;
+    font-size: 14px;
+    color: rgba(150, 150, 165, 0.9);
+}
+
+/* ===== Search field placeholder ===== */
+#search-placeholder {
+    position: absolute;
+    left: 6px;
+    top: 1px;
+    bottom: 0;
+    -unity-text-align: middle-left;
+    color: rgba(140, 140, 155, 0.8);
+}
+
+/* ============================================================
+   Shared window chrome — Fix Missing / Scene Diff / Tutorial.
+   One visual language with the graph: dark panels, accent bars,
+   rounded chips, muted secondary text.
+   ============================================================ */
+
+.xray-window {
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+.xray-dark.xray-window { background-color: rgb(30, 31, 38); }
+.xray-light.xray-window { background-color: rgb(222, 223, 228); }
+
+.xray-window-body {
+    flex-grow: 1;
+    flex-direction: column;
+    padding: 12px 14px;
+}
+
+.xray-title {
+    font-size: 15px;
+    -unity-font-style: bold;
+    margin-bottom: 2px;
+}
+
+.xray-dark .xray-title { color: rgb(232, 235, 244); }
+.xray-light .xray-title { color: rgb(26, 28, 38); }
+
+.xray-subtle {
+    font-size: 11px;
+    white-space: normal;
+    margin-bottom: 10px;
+}
+
+.xray-dark .xray-subtle { color: rgb(150, 156, 172); }
+.xray-light .xray-subtle { color: rgb(92, 96, 112); }
+
+.xray-btn {
+    height: 22px;
+    padding: 0 12px;
+    margin: 0 3px;
+    border-radius: 5px;
+    border-width: 1px;
+    font-size: 11px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.xray-dark .xray-btn {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgb(206, 212, 226);
+}
+
+.xray-light .xray-btn {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.13);
+    color: rgb(42, 45, 58);
+}
+
+.xray-dark .xray-btn:hover { background-color: rgba(120, 160, 255, 0.26); }
+.xray-light .xray-btn:hover { background-color: rgba(60, 110, 220, 0.2); }
+
+.xray-btn--primary {
+    background-color: rgb(64, 115, 191);
+    border-color: rgb(64, 115, 191);
+    color: rgb(255, 255, 255);
+}
+
+.xray-dark .xray-btn--primary:hover,
+.xray-light .xray-btn--primary:hover { background-color: rgb(80, 134, 214); }
+
+.xray-btn:disabled { opacity: 0.4; }
+
+.xray-chip {
+    font-size: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    align-self: center;
+    min-width: 20px;
+    padding: 1px 7px;
+    margin-left: 8px;
+    border-radius: 9px;
+    color: rgb(235, 240, 250);
+    background-color: rgba(88, 128, 240, 0.7);
+}
+
+.xray-chip--danger { background-color: rgba(220, 70, 70, 0.75); }
+.xray-chip--ok { background-color: rgba(70, 175, 100, 0.75); }
+
+.xray-panel {
+    flex-grow: 1;
+    border-radius: 8px;
+    border-width: 1px;
+    overflow: hidden;
+}
+
+.xray-dark .xray-panel {
+    background-color: rgb(20, 21, 27);
+    border-color: rgba(255, 255, 255, 0.09);
+}
+
+.xray-light .xray-panel {
+    background-color: rgb(246, 246, 249);
+    border-color: rgba(0, 0, 0, 0.13);
+}
+
+/* Row cards inside list views. */
+.xray-row {
+    flex-direction: row;
+    align-items: center;
+    height: 26px;
+    padding-right: 8px;
+    border-left-width: 3px;
+    border-bottom-width: 1px;
+}
+
+.xray-dark .xray-row { border-bottom-color: rgba(255, 255, 255, 0.05); }
+.xray-light .xray-row { border-bottom-color: rgba(0, 0, 0, 0.07); }
+
+.xray-dark .xray-row:hover { background-color: rgba(120, 160, 255, 0.12); }
+.xray-light .xray-row:hover { background-color: rgba(60, 110, 220, 0.1); }
+
+.xray-row__icon {
+    width: 16px;
+    height: 16px;
+    margin: 0 6px;
+    flex-shrink: 0;
+}
+
+.xray-row__name {
+    font-size: 12px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.xray-dark .xray-row__name { color: rgb(226, 230, 240); }
+.xray-light .xray-row__name { color: rgb(28, 30, 40); }
+
+.xray-row__meta {
+    font-size: 11px;
+    -unity-text-align: middle-left;
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-left: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.xray-dark .xray-row__meta { color: rgb(146, 152, 168); }
+.xray-light .xray-row__meta { color: rgb(96, 100, 116); }
+
+.xray-row__tag {
+    font-size: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    flex-shrink: 0;
+    padding: 1px 7px;
+    border-radius: 8px;
+}
+
+.xray-row--missing { border-left-color: rgb(228, 78, 78); }
+.xray-row--missing .xray-row__tag {
+    color: rgb(255, 226, 226);
+    background-color: rgba(220, 70, 70, 0.5);
+}
+
+/* ===== Report window (health, analysis, missing refs, snapshot diff) ===== */
+.xray-report-header {
+    flex-direction: row;
+    align-items: center;
+    height: 26px;
+    padding: 0 12px;
+    margin-top: 4px;
+    border-bottom-width: 1px;
+}
+
+.xray-dark .xray-report-header {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.xray-light .xray-report-header {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+
+.xray-report-header__text {
+    font-size: 11px;
+    -unity-font-style: bold;
+    letter-spacing: 0.5px;
+    -unity-text-align: middle-left;
+}
+
+.xray-dark .xray-report-header__text { color: rgb(215, 220, 234); }
+.xray-light .xray-report-header__text { color: rgb(32, 35, 46); }
+
+.xray-report-empty {
+    font-size: 11px;
+    padding: 10px 14px;
+    -unity-font-style: italic;
+}
+
+.xray-dark .xray-report-empty { color: rgb(110, 116, 132); }
+.xray-light .xray-report-empty { color: rgb(130, 134, 148); }
+
+.xray-row--neutral { border-left-color: rgb(96, 150, 220); }
+
+.xray-dark .xray-row--clickable:hover { background-color: rgba(120, 160, 255, 0.14); }
+.xray-light .xray-row--clickable:hover { background-color: rgba(60, 110, 220, 0.12); }
+
+/* Empty / success state. */
+.xray-empty-state {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+.xray-empty-state__title {
+    font-size: 15px;
+    -unity-font-style: bold;
+}
+
+.xray-dark .xray-empty-state__title { color: rgb(120, 126, 142); }
+.xray-light .xray-empty-state__title { color: rgb(130, 134, 148); }
+
+.xray-empty-state__hint {
+    font-size: 11px;
+    margin-top: 4px;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+.xray-dark .xray-empty-state__hint { color: rgb(92, 97, 112); }
+.xray-light .xray-empty-state__hint { color: rgb(146, 150, 162); }
+
+.xray-readonly-text {
+    flex-grow: 1;
+    border-radius: 6px;
+    font-size: 11px;
+}
+
+.xray-step-dots {
+    flex-direction: row;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.xray-step-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 4px;
+    margin: 0 3px;
+}
+
+.xray-dark .xray-step-dot { background-color: rgba(255, 255, 255, 0.18); }
+.xray-light .xray-step-dot { background-color: rgba(0, 0, 0, 0.18); }
+
+.xray-step-dot--active { background-color: rgb(90, 150, 255); }
+
+/* ============================================================
+   Global Search window
+   ============================================================ */
+
+.xray-search-root {
+    padding: 10px 14px;
+    flex-direction: column;
+    height: 100%;
+}
+
+.xray-dark.xray-search-root {
+    background-color: rgb(46, 46, 46);
+}
+
+.xray-light.xray-search-root {
+    background-color: rgb(220, 220, 224);
+}
+
+.xray-search-header {
+    font-size: 18px;
+    -unity-font-style: bold;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.xray-dark .xray-search-header { color: rgb(230, 230, 230); }
+.xray-light .xray-search-header { color: rgb(32, 32, 40); }
+
+.xray-search-mode-row {
+    flex-direction: row;
+    margin-bottom: 8px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.xray-search-mode-label {
+    font-size: 12px;
+    margin-right: 8px;
+}
+
+.xray-dark .xray-search-mode-label { color: rgb(179, 179, 179); }
+.xray-light .xray-search-mode-label { color: rgb(90, 90, 100); }
+
+.xray-search-row {
+    flex-direction: row;
+    height: 32px;
+    padding: 4px 10px;
+    border-width: 1px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.xray-dark .xray-search-row {
+    background-color: rgb(31, 31, 36);
+    border-color: rgb(64, 64, 89);
+}
+
+.xray-light .xray-search-row {
+    background-color: rgb(255, 255, 255);
+    border-color: rgb(180, 180, 190);
+}
+
+.xray-search-icon {
+    font-size: 16px;
+    margin-right: 8px;
+    color: rgb(128, 128, 153);
+}
+
+.xray-search-field {
+    flex-grow: 1;
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    font-size: 14px;
+    -unity-text-align: middle-left;
+}
+
+.xray-dark .xray-search-field { color: rgb(230, 230, 230); }
+.xray-light .xray-search-field { color: rgb(28, 28, 36); }
+
+.xray-search-btn {
+    margin-left: 8px;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 4px 14px;
+    border-width: 0;
+    -unity-font-style: bold;
+    background-color: rgb(64, 115, 191);
+    color: rgb(255, 255, 255);
+}
+
+.xray-search-suggestions {
+    max-height: 180px;
+    overflow: hidden;
+    border-width: 1px;
+    display: none;
+}
+
+.xray-dark .xray-search-suggestions {
+    background-color: rgb(31, 31, 36);
+    border-color: rgb(64, 64, 89);
+}
+
+.xray-light .xray-search-suggestions {
+    background-color: rgb(255, 255, 255);
+    border-color: rgb(180, 180, 190);
+}
+
+.xray-search-suggestion-item {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 13px;
+    border-bottom-width: 1px;
+    -unity-text-align: middle-left;
+    flex-shrink: 0;
+}
+
+.xray-dark .xray-search-suggestion-item {
+    color: rgb(230, 230, 230);
+    border-bottom-color: rgb(51, 51, 64);
+}
+
+.xray-light .xray-search-suggestion-item {
+    color: rgb(28, 28, 36);
+    border-bottom-color: rgb(210, 210, 220);
+}
+
+.xray-search-count {
+    font-size: 12px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
+}
+
+.xray-dark .xray-search-count { color: rgb(153, 153, 153); }
+.xray-light .xray-search-count { color: rgb(110, 110, 120); }
+
+.xray-search-results {
+    flex-grow: 1;
+    flex-shrink: 1;
+    padding: 0;
+}
+
+.xray-dark .xray-search-results { background-color: rgb(20, 20, 26); }
+.xray-light .xray-search-results { background-color: rgb(245, 245, 248); }
+
+.xray-search-result-row {
+    flex-direction: row;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    border-bottom-width: 1px;
+    border-left-width: 3px;
+    flex-shrink: 0;
+}
+
+.xray-dark .xray-search-result-row { border-bottom-color: rgb(38, 38, 51); }
+.xray-light .xray-search-result-row { border-bottom-color: rgb(210, 210, 220); }
+
+.xray-search-result-name {
+    font-size: 13px;
+    -unity-font-style: bold;
+    flex-grow: 1;
+    margin-right: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    -unity-text-align: middle-left;
+    height: 32px;
+}
+
+.xray-dark .xray-search-result-name { color: rgb(242, 242, 242); }
+.xray-light .xray-search-result-name { color: rgb(28, 28, 36); }
+
+.xray-search-result-info {
+    font-size: 11px;
+    flex-shrink: 0;
+    margin-right: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 80px;
+    -unity-text-align: middle-right;
+}
+
+.xray-dark .xray-search-result-info { color: rgb(128, 128, 128); }
+.xray-light .xray-search-result-info { color: rgb(120, 120, 130); }
+
+.xray-search-result-path {
+    font-size: 11px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 250px;
+    -unity-text-align: middle-right;
+}
+
+.xray-dark .xray-search-result-path { color: rgb(102, 102, 102); }
+.xray-light .xray-search-result-path { color: rgb(140, 140, 150); }
+
+.xray-search-result-row.missing { border-left-color: rgb(255, 77, 77); }
+.xray-search-result-row.unityevent { border-left-color: rgb(255, 217, 51); }
+.xray-search-result-row.direct { border-left-color: rgb(77, 153, 255); }
+
+.xray-search-empty {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+}
+
+.xray-search-empty-title {
+    font-size: 16px;
+    -unity-font-style: bold;
+}
+
+.xray-dark .xray-search-empty-title { color: rgb(102, 102, 115); }
+.xray-light .xray-search-empty-title { color: rgb(140, 140, 155); }
+
+.xray-search-empty-hint {
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.xray-dark .xray-search-empty-hint { color: rgb(77, 77, 89); }
+.xray-light .xray-search-empty-hint { color: rgb(150, 150, 160); }
+
+.xray-search-drop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+    display: none;
+}
+
+.xray-search-drop-label {
+    font-size: 28px;
+    color: rgb(255, 255, 255);
+    -unity-font-style: bold;
+}
+
+/* ===== Status bar (bottom): paging · counts · hints · zoom ===== */
+.xray-hotkey-legend {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 26px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 6px;
+    padding-right: 6px;
+    border-top-width: 1px;
+}
+
+.xray-dark .xray-hotkey-legend {
+    background-color: rgba(12, 13, 18, 0.94);
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.xray-light .xray-hotkey-legend {
+    background-color: rgba(236, 237, 242, 0.96);
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+.xray-hotkey-legend__text {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    -unity-text-align: middle-left;
+}
+
+.xray-dark .xray-hotkey-legend__text { color: rgb(150, 155, 170); }
+.xray-light .xray-hotkey-legend__text { color: rgb(70, 75, 90); }
+
+.xray-status-btn {
+    min-width: 20px;
+    height: 18px;
+    margin: 0 1px;
+    padding: 0 4px;
+    border-radius: 4px;
+    border-width: 1px;
+    font-size: 11px;
+    -unity-text-align: middle-center;
+}
+
+.xray-dark .xray-status-btn {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.09);
+    color: rgb(198, 204, 218);
+}
+
+.xray-light .xray-status-btn {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.12);
+    color: rgb(45, 48, 60);
+}
+
+.xray-dark .xray-status-btn:hover { background-color: rgba(120, 160, 255, 0.28); }
+.xray-light .xray-status-btn:hover { background-color: rgba(60, 110, 220, 0.22); }
+
+.xray-status-btn:disabled { opacity: 0.35; }
+
+.xray-status-page,
+.xray-status-counts,
+.xray-status-zoom,
+.xray-status-message {
+    font-size: 11px;
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+}
+
+.xray-status-page { min-width: 44px; }
+.xray-status-counts { margin-left: 10px; }
+.xray-status-zoom { min-width: 42px; }
+
+.xray-dark .xray-status-page,
+.xray-dark .xray-status-counts,
+.xray-dark .xray-status-zoom { color: rgb(168, 175, 192); }
+
+.xray-light .xray-status-page,
+.xray-light .xray-status-counts,
+.xray-light .xray-status-zoom { color: rgb(60, 64, 78); }
+
+.xray-status-message {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -unity-text-align: middle-left;
+    -unity-font-style: bold;
+    color: rgb(255, 200, 60);
+}
+
+.xray-status-sep {
+    width: 1px;
+    height: 14px;
+    margin: 0 8px;
+    flex-shrink: 0;
+}
+
+.xray-dark .xray-status-sep { background-color: rgba(255, 255, 255, 0.12); }
+.xray-light .xray-status-sep { background-color: rgba(0, 0, 0, 0.15); }
+
+/* ===== MiniMap ===== */
+.xray-minimap {
+    border-radius: 8px;
+    border-width: 1px;
+}
+
+.xray-dark .xray-minimap {
+    background-color: rgba(16, 17, 23, 0.92);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.xray-light .xray-minimap {
+    background-color: rgba(232, 233, 238, 0.94);
+    border-color: rgba(0, 0, 0, 0.15);
+}
+
