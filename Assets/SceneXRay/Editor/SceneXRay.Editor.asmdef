@@ -10,7 +10,25 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": false,
-    "defineConstraints": [],
-    "versionDefines": [],
+    "defineConstraints": [
+        "UNITY_6000_0_OR_NEWER"
+    ],
+    "versionDefines": [
+        {
+            "name": "Unity",
+            "expression": "6000.0",
+            "define": "SCENEXRAY_UNITY_6_OR_NEWER"
+        },
+        {
+            "name": "Unity",
+            "expression": "6000.3",
+            "define": "SCENEXRAY_UNITY_6_3_OR_NEWER"
+        },
+        {
+            "name": "Unity",
+            "expression": "6000.5",
+            "define": "SCENEXRAY_UNITY_6_5_OR_NEWER"
+        }
+    ],
     "noEngineReferences": false
 }

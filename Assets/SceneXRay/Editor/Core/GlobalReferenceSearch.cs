@@ -6,11 +6,6 @@ using UnityEngine.SceneManagement;
 
 namespace SceneXRay.Editor.Core
 {
-    /// <summary>
-    /// Full-project reference search: walks every build scene and every prefab.
-    /// Heavyweight by design — intended ONLY for the Global Search window (user-triggered),
-    /// never from inspector or overlay code paths. Shows a progress bar while working.
-    /// </summary>
     public static class GlobalReferenceSearch
     {
         public static List<DependencyLink> FindReferences(GameObject target)
@@ -18,13 +13,11 @@ namespace SceneXRay.Editor.Core
             return CollectAllLinks().Where(l => l.Target == target).ToList();
         }
 
-        /// <summary>Scans loaded scenes, other build scenes (opened additively) and all prefabs.</summary>
         public static List<DependencyLink> CollectAllLinks()
         {
             var allLinks = new List<DependencyLink>();
             try
             {
-                // 1. Currently loaded scenes — reuse the background index when it is fresh.
                 if (XRayReferenceIndex.IsReady)
                 {
                     allLinks.AddRange(XRayReferenceIndex.AllLinks);
@@ -39,7 +32,6 @@ namespace SceneXRay.Editor.Core
                 for (int i = 0; i < SceneManager.sceneCount; i++)
                     loadedPaths.Add(SceneManager.GetSceneAt(i).path);
 
-                // 2. Remaining build scenes, opened additively one by one.
                 var pending = EditorBuildSettings.scenes
                     .Where(s => s.enabled && !string.IsNullOrEmpty(s.path) && !loadedPaths.Contains(s.path))
                     .ToList();
@@ -63,7 +55,6 @@ namespace SceneXRay.Editor.Core
                     }
                 }
 
-                // 3. Prefabs.
                 EditorUtility.DisplayProgressBar("SceneXRay Global Search", "Scanning prefabs...", 0.8f);
                 foreach (var pair in PrefabScanner.ScanAllPrefabs())
                     allLinks.AddRange(pair.Value);

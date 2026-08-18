@@ -8,7 +8,6 @@ using UnityEngine;
 
 namespace SceneXRay.Editor.Exporters
 {
-    /// <summary>Export menu + JSON/CSV/HTML exporters. All exports go through SaveFilePanel.</summary>
     public static class XRayExporter
     {
         public static void ShowExportMenu(List<DependencyLink> links)
@@ -17,8 +16,7 @@ namespace SceneXRay.Editor.Exporters
             GenericMenu menu = new GenericMenu();
             menu.AddItem(new GUIContent("JSON"), false, () => ExportToJson(links));
             menu.AddItem(new GUIContent("CSV"), false, () => ExportToCsv(links));
-            menu.AddItem(new GUIContent("HTML (D3.js)"), false, () => ExportToHtml(links));
-            menu.AddItem(new GUIContent("PlantUML"), false, () => XRayPlantUMLExporter.ExportToPlantUML(links));
+            menu.AddItem(new GUIContent("HTML (interactive)"), false, () => ExportToHtml(links));
             menu.AddItem(new GUIContent("Mermaid"), false, () => XRayMermaidExporter.ExportToMermaid(links));
             menu.AddItem(new GUIContent("Markdown"), false, () => XRayMarkdownExporter.ExportToMarkdown(links));
             menu.ShowAsContext();
@@ -37,8 +35,6 @@ namespace SceneXRay.Editor.Exporters
             return sb.ToString();
         }
 
-        // ---------------- JSON ----------------
-
         [System.Serializable]
         private class JsonNode
         {
@@ -51,7 +47,7 @@ namespace SceneXRay.Editor.Exporters
         private class JsonLink
         {
             public int Source;
-            public int Target; // -1 when missing / asset
+            public int Target;
             public string TargetName;
             public string Component;
             public string Property;
@@ -59,7 +55,6 @@ namespace SceneXRay.Editor.Exporters
             public string Type;
         }
 
-        // JsonUtility needs concrete serializable types — no anonymous objects, no bare lists.
         [System.Serializable]
         private class JsonPayload
         {
@@ -70,9 +65,8 @@ namespace SceneXRay.Editor.Exporters
             public List<JsonLink> links;
         }
 
-        /// <summary>D3 force-graph node — lowercase names are what the HTML template reads.</summary>
         [System.Serializable]
-        private class D3Node
+        private class HtmlNode
         {
             public int id;
             public string name;
@@ -81,7 +75,7 @@ namespace SceneXRay.Editor.Exporters
         }
 
         [System.Serializable]
-        private class D3Link
+        private class HtmlLink
         {
             public int source;
             public int target;
@@ -90,10 +84,10 @@ namespace SceneXRay.Editor.Exporters
         }
 
         [System.Serializable]
-        private class D3Payload
+        private class HtmlPayload
         {
-            public List<D3Node> nodes;
-            public List<D3Link> links;
+            public List<HtmlNode> nodes;
+            public List<HtmlLink> links;
         }
 
         public static void ExportToJson(List<DependencyLink> links)
@@ -150,8 +144,6 @@ namespace SceneXRay.Editor.Exporters
             return (nodes, jsonLinks);
         }
 
-        // ---------------- CSV ----------------
-
         public static void ExportToCsv(List<DependencyLink> links)
         {
             string path = EditorUtility.SaveFilePanel("Export CSV", "", "scenexray_links", "csv");
@@ -184,29 +176,27 @@ namespace SceneXRay.Editor.Exporters
             return value;
         }
 
-        // ---------------- HTML (interactive D3.js force graph) ----------------
-
         public static void ExportToHtml(List<DependencyLink> links)
         {
             string path = EditorUtility.SaveFilePanel("Export HTML", "", "scenexray_graph", "html");
             if (string.IsNullOrEmpty(path)) return;
 
-            // D3 wants links to reference node ids; add synthetic nodes for missing/asset targets.
-            var nodeIds = new Dictionary<GameObject, int>();
-            var d3Nodes = new List<D3Node>();
-            var d3Links = new List<D3Link>();
+            var nodeIds = new Dictionary<UnityEngine.Object, int>();
+            var htmlNodes = new List<HtmlNode>();
+            var htmlLinks = new List<HtmlLink>();
 
-            int GetId(GameObject go, string name, string group)
+            int GetId(UnityEngine.Object obj, string name, string group)
             {
-                if (go != null && nodeIds.TryGetValue(go, out int existing)) return existing;
-                int id = d3Nodes.Count;
-                if (go != null) nodeIds[go] = id;
-                d3Nodes.Add(new D3Node
+                if (obj != null && nodeIds.TryGetValue(obj, out int existing)) return existing;
+                int id = htmlNodes.Count;
+                if (obj != null) nodeIds[obj] = id;
+                htmlNodes.Add(new HtmlNode
                 {
                     id = id,
                     name = name,
                     group = group,
-                    path = go != null ? GetPath(go) : null
+                    path = obj is GameObject go ? GetPath(go)
+                        : obj != null ? AssetDatabase.GetAssetPath(obj) : null
                 });
                 return id;
             }
@@ -221,11 +211,13 @@ namespace SceneXRay.Editor.Exporters
                 else if (l.Target != null)
                     tgt = GetId(l.Target, l.Target.name, "object");
                 else if (l.TargetAsset != null)
-                    tgt = GetId(null, $"Asset: {l.TargetAsset.name}", "asset");
+                    tgt = GetId(l.TargetAsset,
+                        l.IsImplicit ? $"Script: {l.TargetAsset.name}" : $"Asset: {l.TargetAsset.name}",
+                        l.IsImplicit ? "script" : "asset");
                 else
                     continue;
 
-                d3Links.Add(new D3Link
+                htmlLinks.Add(new HtmlLink
                 {
                     source = src,
                     target = tgt,
@@ -237,12 +229,14 @@ namespace SceneXRay.Editor.Exporters
 
             string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             float score = XRayAnalyzer.CalculateHealthScore(links);
-            string dataJson = JsonUtility.ToJson(new D3Payload { nodes = d3Nodes, links = d3Links });
+            string dataJson = JsonUtility.ToJson(new HtmlPayload { nodes = htmlNodes, links = htmlLinks });
+            string dataBase64 = System.Convert.ToBase64String(Encoding.UTF8.GetBytes(dataJson));
 
             string html = HtmlTemplate
-                .Replace("__TITLE__", $"SceneXRay — {sceneName}")
-                .Replace("__SUBTITLE__", $"{sceneName} · {links.Count} links · Health {score:F1}% · {System.DateTime.Now:yyyy-MM-dd HH:mm}")
-                .Replace("__DATA__", dataJson);
+                .Replace("__TITLE__", System.Net.WebUtility.HtmlEncode($"SceneXRay — {sceneName}"))
+                .Replace("__SUBTITLE__", System.Net.WebUtility.HtmlEncode(
+                    $"{sceneName} · {links.Count} links · Health {score:F1}% · {System.DateTime.Now:yyyy-MM-dd HH:mm}"))
+                .Replace("__DATA_BASE64__", dataBase64);
 
             System.IO.File.WriteAllText(path, html, Encoding.UTF8);
             EditorUtility.RevealInFinder(path);
@@ -254,7 +248,6 @@ namespace SceneXRay.Editor.Exporters
 <head>
 <meta charset=""utf-8"">
 <title>__TITLE__</title>
-<script src=""https://cdn.jsdelivr.net/npm/d3@7""></script>
 <style>
   html, body { margin: 0; height: 100%; background: #16161a; color: #dcdceb; font-family: 'Segoe UI', sans-serif; }
   #header { position: absolute; top: 12px; left: 16px; z-index: 10; pointer-events: none; }
@@ -277,56 +270,92 @@ namespace SceneXRay.Editor.Exporters
   <span class=""lg""><span class=""dot"" style=""background:#ffd23c""></span>UnityEvent</span>
   <span class=""lg""><span class=""dot"" style=""background:#ff5050""></span>Missing</span>
   <span class=""lg""><span class=""dot"" style=""background:#a078ff""></span>Asset</span>
+  <span class=""lg""><span class=""dot"" style=""background:#4dc79e""></span>In code</span>
 </div>
 <div id=""tooltip""></div>
 <svg></svg>
 <script>
-const data = __DATA__;
-const linkColor = { Direct: '#46a0ff', UnityEvent: '#ffd23c', Missing: '#ff5050', AssetReference: '#a078ff' };
-const nodeColor = { object: '#3a6ea5', missing: '#8a3030', asset: '#5a3f8a' };
+const data = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('__DATA_BASE64__'), c => c.charCodeAt(0))));
+const linkColor = { Direct: '#46a0ff', UnityEvent: '#ffd23c', Missing: '#ff5050', AssetReference: '#a078ff', Implicit: '#4dc79e' };
+const nodeColor = { object: '#3a6ea5', missing: '#8a3030', asset: '#5a3f8a', script: '#287d69' };
+const ns = 'http://www.w3.org/2000/svg';
+const svg = document.querySelector('svg');
+const viewport = document.createElementNS(ns, 'g');
+svg.appendChild(viewport);
+const tooltip = document.querySelector('#tooltip');
+const byId = new Map(data.nodes.map(n => [n.id, n]));
+const columns = Math.max(1, Math.ceil(Math.sqrt(data.nodes.length)));
+data.nodes.forEach((n, i) => { n.x = 100 + (i % columns) * 170; n.y = 100 + Math.floor(i / columns) * 90; });
 
-const svg = d3.select('svg');
-const width = window.innerWidth, height = window.innerHeight;
-const g = svg.append('g');
-svg.call(d3.zoom().scaleExtent([0.1, 4]).on('zoom', e => g.attr('transform', e.transform)));
+const lineLayer = document.createElementNS(ns, 'g');
+const nodeLayer = document.createElementNS(ns, 'g');
+viewport.append(lineLayer, nodeLayer);
 
-const sim = d3.forceSimulation(data.nodes)
-  .force('link', d3.forceLink(data.links).id(d => d.id).distance(90))
-  .force('charge', d3.forceManyBody().strength(-250))
-  .force('center', d3.forceCenter(width / 2, height / 2))
-  .force('collide', d3.forceCollide(28));
-
-const link = g.append('g').selectAll('line').data(data.links).join('line')
-  .attr('class', 'link')
-  .attr('stroke', d => linkColor[d.type] || '#888')
-  .attr('stroke-width', d => d.type === 'Missing' ? 2.5 : 1.5)
-  .attr('stroke-dasharray', d => d.type === 'Missing' ? '6 4' : null);
-
-const tooltip = d3.select('#tooltip');
-const node = g.append('g').selectAll('g').data(data.nodes).join('g')
-  .attr('class', 'node')
-  .call(d3.drag()
-    .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-    .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
-    .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
-
-node.append('circle')
-  .attr('r', 10)
-  .attr('fill', d => nodeColor[d.group] || '#666')
-  .attr('stroke', '#0d0d10').attr('stroke-width', 1.5)
-  .on('mouseover', (e, d) => tooltip.style('opacity', 1).html((d.path || d.name)))
-  .on('mousemove', e => tooltip.style('left', (e.pageX + 12) + 'px').style('top', (e.pageY - 10) + 'px'))
-  .on('mouseout', () => tooltip.style('opacity', 0));
-
-node.append('text').attr('dx', 14).attr('dy', 4).text(d => d.name);
-
-link.append('title').text(d => d.label);
-
-sim.on('tick', () => {
-  link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-  node.attr('transform', d => `translate(${d.x},${d.y})`);
+data.links.forEach(link => {
+  link.sourceNode = byId.get(link.source);
+  link.targetNode = byId.get(link.target);
+  const line = document.createElementNS(ns, 'line');
+  line.setAttribute('class', 'link');
+  line.setAttribute('stroke', linkColor[link.type] || '#888');
+  line.setAttribute('stroke-width', link.type === 'Missing' ? '2.5' : '1.5');
+  if (link.type === 'Missing') line.setAttribute('stroke-dasharray', '6 4');
+  const title = document.createElementNS(ns, 'title');
+  title.textContent = link.label || '';
+  line.appendChild(title);
+  lineLayer.appendChild(line);
+  link.element = line;
 });
+
+data.nodes.forEach(node => {
+  const group = document.createElementNS(ns, 'g');
+  group.setAttribute('class', 'node');
+  const circle = document.createElementNS(ns, 'circle');
+  circle.setAttribute('r', '10');
+  circle.setAttribute('fill', nodeColor[node.group] || '#666');
+  circle.setAttribute('stroke', '#0d0d10');
+  circle.setAttribute('stroke-width', '1.5');
+  const label = document.createElementNS(ns, 'text');
+  label.setAttribute('x', '14');
+  label.setAttribute('y', '4');
+  label.textContent = node.name || '';
+  group.append(circle, label);
+  group.addEventListener('pointerenter', e => { tooltip.textContent = node.path || node.name || ''; tooltip.style.opacity = '1'; });
+  group.addEventListener('pointermove', e => { tooltip.style.left = (e.pageX + 12) + 'px'; tooltip.style.top = (e.pageY - 10) + 'px'; });
+  group.addEventListener('pointerleave', () => { tooltip.style.opacity = '0'; });
+  group.addEventListener('pointerdown', e => { e.stopPropagation(); dragNode = node; svg.setPointerCapture(e.pointerId); });
+  nodeLayer.appendChild(group);
+  node.element = group;
+});
+
+let panX = 0, panY = 0, zoom = 1, panning = false, lastX = 0, lastY = 0, dragNode = null;
+function render() {
+  viewport.setAttribute('transform', `translate(${panX} ${panY}) scale(${zoom})`);
+  data.nodes.forEach(n => n.element.setAttribute('transform', `translate(${n.x} ${n.y})`));
+  data.links.forEach(l => {
+    if (!l.sourceNode || !l.targetNode) return;
+    l.element.setAttribute('x1', l.sourceNode.x); l.element.setAttribute('y1', l.sourceNode.y);
+    l.element.setAttribute('x2', l.targetNode.x); l.element.setAttribute('y2', l.targetNode.y);
+  });
+}
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  const old = zoom;
+  zoom = Math.min(4, Math.max(0.1, zoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+  panX = e.clientX - (e.clientX - panX) * (zoom / old);
+  panY = e.clientY - (e.clientY - panY) * (zoom / old);
+  render();
+}, { passive: false });
+svg.addEventListener('pointerdown', e => { panning = true; lastX = e.clientX; lastY = e.clientY; svg.setPointerCapture(e.pointerId); });
+svg.addEventListener('pointermove', e => {
+  if (dragNode) {
+    dragNode.x = (e.clientX - panX) / zoom; dragNode.y = (e.clientY - panY) / zoom;
+  } else if (panning) {
+    panX += e.clientX - lastX; panY += e.clientY - lastY; lastX = e.clientX; lastY = e.clientY;
+  } else return;
+  render();
+});
+svg.addEventListener('pointerup', e => { panning = false; dragNode = null; if (svg.hasPointerCapture(e.pointerId)) svg.releasePointerCapture(e.pointerId); });
+render();
 </script>
 </body>
 </html>";

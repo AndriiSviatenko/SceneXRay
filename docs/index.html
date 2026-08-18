@@ -172,7 +172,7 @@ footer{padding:36px 60px 60px;color:var(--text3);font-size:12px}
     <a href="#health"><span class="ndot"></span>Health &amp; missing refs</a>
     <a href="#inspector"><span class="ndot"></span>Inspector strip</a>
     <a href="#search"><span class="ndot"></span>Search &amp; bookmarks</a>
-    <a href="#snapshots"><span class="ndot"></span>Snapshots &amp; export</a>
+    <a href="#diff-export"><span class="ndot"></span>Diff &amp; export</a>
 
     <div class="nav-group">Reference</div>
     <a href="#settings"><span class="ndot"></span>Settings</a>
@@ -235,8 +235,9 @@ footer{padding:36px 60px 60px;color:var(--text3);font-size:12px}
     <div class="feat-card"><div class="feat-name">Scene overlay</div><div class="feat-desc">Dependency lines drawn in the Scene View, colour-coded by link type.</div></div>
     <div class="feat-card"><div class="feat-name">Global search</div><div class="feat-desc">Find what references any object, across loaded scenes and the project.</div></div>
     <div class="feat-card"><div class="feat-name">Bookmarks</div><div class="feat-desc">Pin objects and jump back later. Ctrl+Shift+Alt+J to toggle, +K to open the list.</div></div>
-    <div class="feat-card"><div class="feat-name">Snapshots &amp; diff</div><div class="feat-desc">Checkpoint the graph, compare two snapshots, or diff two scene assets.</div></div>
-    <div class="feat-card"><div class="feat-name">Export</div><div class="feat-desc">JSON, CSV, HTML (D3.js), PlantUML, Mermaid, Markdown.</div></div>
+    <div class="feat-card"><div class="feat-name">Scene diff</div><div class="feat-desc">Compare the dependency links of two scene assets without leaving them open.</div></div>
+    <div class="feat-card"><div class="feat-name">Code dependencies</div><div class="feat-desc">Optional scan for generic component lookups, object names and tags used in C#.</div></div>
+    <div class="feat-card"><div class="feat-name">Export</div><div class="feat-desc">JSON, CSV, self-contained interactive HTML, Mermaid and Markdown.</div></div>
     <div class="feat-card"><div class="feat-name">Build guard + CLI</div><div class="feat-desc">Quality gates in batchmode with a non-zero exit code when the scene is broken.</div></div>
     <div class="feat-card"><div class="feat-name">Localization</div><div class="feat-desc">English and Ukrainian, switched in Project Settings.</div><span class="tag tag-grey">EN / UA</span></div>
   </div>
@@ -254,7 +255,7 @@ footer{padding:36px 60px 60px;color:var(--text3);font-size:12px}
     <div class="step"><div class="step-n">3</div><div><div class="step-title">Press Refresh</div><div class="step-desc">Every loaded scene is scanned. Large scenes are paged — raise <span class="inline-code">Max Nodes In Graph</span> in settings if you want more per page.</div></div></div>
   </div>
 
-  <div class="callout callout-green" style="margin-top:26px"><strong>Requirements:</strong> Unity 2022.3 LTS or newer (verified on Unity 6000.0). No packages, no third-party libraries, no runtime footprint.</div>
+  <div class="callout callout-green" style="margin-top:26px"><strong>Requirements:</strong> Unity 6000.0 LTS (Unity 6) or newer (verified on Unity 6000.0.62f1 and 6000.5.6f1). No packages, no third-party libraries, no runtime footprint.</div>
 </div>
 
 <!-- FIRST RUN -->
@@ -389,7 +390,7 @@ Double-click a neighbour → it becomes the new center
 <div class="doc-section" id="scanned">
   <div class="s-label">Analysis</div>
   <div class="s-title">What gets scanned</div>
-  <p class="s-desc">Every visible serialized <span class="inline-code">ObjectReference</span> on every component of every GameObject in the loaded scenes, plus persistent UnityEvent targets found through reflection.</p>
+  <p class="s-desc">Every serialized <span class="inline-code">ObjectReference</span> on every component of every GameObject in the loaded scenes, including fields hidden from the Inspector, plus persistent UnityEvent targets found through reflection.</p>
 
   <table>
     <tr><th>Link type</th><th>Source</th><th>Example</th></tr>
@@ -397,6 +398,7 @@ Double-click a neighbour → it becomes the new center
     <tr><td><strong>UnityEvent</strong></td><td>persistent listener target + method</td><td><code>Button.m_OnClick → GameManager.Restart()</code></td></tr>
     <tr><td><strong>Asset</strong></td><td>any referenced project asset</td><td><code>MeshRenderer → M_Player</code></td></tr>
     <tr><td><strong>Missing</strong></td><td>reference whose target no longer exists</td><td><code>Spawner.target → Missing</code></td></tr>
+    <tr><td><strong>In code</strong></td><td>opt-in C# lookup by type, name or tag</td><td><code>HUD → FindWithTag("Player")</code></td></tr>
   </table>
 
   <h3 class="sub">Noise control</h3>
@@ -409,6 +411,7 @@ Double-click a neighbour → it becomes the new center
   </table>
 
   <div class="callout"><strong>Prefabs.</strong> The <span class="inline-code">Prefabs</span> toggle also scans the prefab assets used by instances in the loaded scenes, so a prefab's own internal wiring and its material / clip references show up in the same graph.</div>
+  <div class="callout callout-yellow"><strong>Code scan limitations.</strong> The optional code pass is a fast text analysis, not a Roslyn compilation. It detects literal generic lookups, object names and tags, but not reflection, dependency-injection bindings, generated code, aliases or dynamically assembled strings. Broad lookups are capped to avoid unreadable edge floods.</div>
 </div>
 
 <!-- HEALTH -->
@@ -459,18 +462,16 @@ Double-click a neighbour → it becomes the new center
   </table>
 </div>
 
-<!-- SNAPSHOTS -->
-<div class="doc-section" id="snapshots">
+<!-- DIFF AND EXPORT -->
+<div class="doc-section" id="diff-export">
   <div class="s-label">Analysis</div>
-  <div class="s-title">Snapshots &amp; export</div>
-  <p class="s-desc">Checkpoint the wiring before a refactor, then prove what changed.</p>
+  <div class="s-title">Scene diff &amp; export</div>
+  <p class="s-desc">Compare two scene assets structurally, or take the current graph into documentation and tooling.</p>
 
   <table>
     <tr><th>Command</th><th>Result</th></tr>
-    <tr><td>Advanced ▸ Save Snapshot</td><td>Stores nodes, edges and health in <span class="inline-code">Library/SceneXRay/Snapshots</span></td></tr>
-    <tr><td>Advanced ▸ Compare Snapshots</td><td>Health delta plus added / removed edges between the two newest snapshots</td></tr>
     <tr><td>Advanced ▸ Scene Diff</td><td>Compares the dependency links of two scene assets without opening them</td></tr>
-    <tr><td>Export</td><td>JSON · CSV · HTML (D3.js force graph) · PlantUML · Mermaid · Markdown</td></tr>
+    <tr><td>Export</td><td>JSON · CSV · self-contained interactive HTML · Mermaid · Markdown</td></tr>
   </table>
 
   <div class="callout">Mermaid and Markdown output drop straight into a README or a wiki page — handy for documenting how a scene is wired without screenshots that go stale.</div>
@@ -485,12 +486,14 @@ Double-click a neighbour → it becomes the new center
   <table>
     <tr><th>Group</th><th>Setting</th><th>Effect</th></tr>
     <tr><td>Overlay</td><td>Enable / Animate</td><td>Dependency lines drawn in the Scene View for the selected object</td></tr>
-    <tr><td>Colors</td><td>Direct · UnityEvent · Missing · Asset · Line Width</td><td>Applies to both the overlay and the graph edges, live — no refresh needed</td></tr>
+    <tr><td>Colors</td><td>Direct · UnityEvent · Missing · Asset · In Code · Line Width</td><td>Applies to both the overlay and the graph edges, live — no refresh needed</td></tr>
     <tr><td>Inspector</td><td>Inspector Integration</td><td>The References / Referenced By strip</td></tr>
     <tr><td>Graph</td><td>Max Nodes In Graph</td><td>Page size for very large scenes</td></tr>
     <tr><td>Scanning</td><td>Ignored Components</td><td>Component types the scanner skips entirely</td></tr>
     <tr><td>Scanning</td><td>Scan Asset References</td><td>Record links to project assets (materials, clips, ScriptableObjects…)</td></tr>
     <tr><td>Scanning</td><td>Include Built-in Assets</td><td>Also record Unity's built-ins — noisy, off by default</td></tr>
+    <tr><td>Scanning</td><td>Scan Code Dependencies</td><td>Opt-in C# lookup scan; off by default because it reads script source files</td></tr>
+    <tr><td>Scanning</td><td>Max Code Targets · Script Nodes</td><td>Caps broad lookups and controls whether referenced classes appear as cards</td></tr>
     <tr><td>Build</td><td>Build Guard · Fail Build On Missing Refs</td><td>Block a build when the scene has broken references</td></tr>
     <tr><td>Language</td><td>English / Українська</td><td>Editor UI language</td></tr>
   </table>
@@ -516,7 +519,7 @@ Double-click a neighbour → it becomes the new center
     <tr><th>Behaviour</th><th>Detail</th></tr>
     <tr><td>Output</td><td>Every link as JSON: source path, target, property, component, link type</td></tr>
     <tr><td>Exit code</td><td><code>0</code> clean · <code>1</code> when a quality gate fails or the scene is missing</td></tr>
-    <tr><td>Build guard</td><td>Independently blocks local builds when <strong>Fail Build On Missing Refs</strong> is on</td></tr>
+    <tr><td>Build guard</td><td>Off by default. Enable <strong>Build Guard</strong> to scan before a build: interactive builds ask for confirmation, batchmode fails only when <strong>Fail Build On Missing Refs</strong> is on</td></tr>
   </table>
 </div>
 
@@ -530,14 +533,14 @@ Double-click a neighbour → it becomes the new center
 ├── <span class="tf">Editor/</span>
 │   ├── <span class="tf">Core/</span>          <span class="tc">SceneXRay.Editor.Core — scanning, index, analysis, storage</span>
 │   │   SceneScanner · PrefabScanner · XRayReferenceIndex · XRayAnalyzer
-│   │   XRayLayoutStore · XRayCacheManager · SnapshotManager · XRayBookmarks
+│   │   XRayLayoutStore · XRayCacheManager · CodeDependencyScanner · XRayBookmarks
 │   │   QualityGate · BuildGuard · CommandLine · SceneXRaySettings
 │   ├── <span class="tf">UI/</span>            <span class="tc">SceneXRay.Editor.UI — graph canvas and editor UI</span>
 │   │   XRayVirtualGraphView (+ XRayGraphInteraction) · XRayNode · XRayEdge
 │   │   XRayInspectorIntegration · XRayOverlay · XRayHealthScoreUI · XRayLocalization
 │   ├── <span class="tf">Windows/</span>       <span class="tc">SceneXRay.Editor.Windows — EditorWindows</span>
 │   │   XRayWindow · GlobalSearch · Bookmarks · References · FixMissing · SceneDiff · Tutorial
-│   ├── <span class="tf">Exporters/</span>     <span class="tc">SceneXRay.Editor.Exporters — JSON/CSV/HTML/UML/Mermaid/MD</span>
+│   ├── <span class="tf">Exporters/</span>     <span class="tc">SceneXRay.Editor.Exporters — JSON/CSV/HTML/Mermaid/MD</span>
 │   ├── <span class="tf">Styles/</span>        <span class="tc">XRayStyles.uss — dark + light skins</span>
 │   └── SceneXRay.Editor.asmdef
 └── <span class="tf">Tests/Editor/</span>      <span class="tc">SceneXRay.Editor.Tests —  EditMode tests</span></div>
@@ -553,7 +556,7 @@ Double-click a neighbour → it becomes the new center
     <tr><th>Path</th><th>Content</th></tr>
     <tr><td><code>ProjectSettings/SceneXRaySettings.asset</code></td><td>Shared team settings</td></tr>
     <tr><td><code>UserSettings/SceneXRay/Layouts/</code></td><td>Your saved graph arrangements</td></tr>
-    <tr><td><code>Library/SceneXRay/</code></td><td>Scan cache, snapshots, bookmarks, tags</td></tr>
+    <tr><td><code>Library/SceneXRay/</code></td><td>Scan cache and bookmarks</td></tr>
   </table>
   <div class="callout callout-green">Nothing SceneXRay writes ends up in version control, and nothing is written into <span class="inline-code">Assets/</span> at runtime.</div>
 </div>

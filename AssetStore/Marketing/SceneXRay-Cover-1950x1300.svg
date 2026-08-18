@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1950" height="1300" viewBox="0 0 1950 1300">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#151f2d"/><stop offset=".52" stop-color="#0c121c"/><stop offset="1" stop-color="#070a10"/></linearGradient>
+    <linearGradient id="scan" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#61d6ff"/><stop offset=".52" stop-color="#6d91ff"/><stop offset="1" stop-color="#a06af7"/></linearGradient>
+    <radialGradient id="iris"><stop stop-color="#efffff"/><stop offset=".19" stop-color="#6ee0ff"/><stop offset=".68" stop-color="#5d7bf5"/><stop offset="1" stop-color="#9f5cf5"/></radialGradient>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse"><path d="M64 0H0V64" fill="none" stroke="#9bb0c6" stroke-opacity=".075" stroke-width="2"/></pattern>
+    <filter id="glow"><feGaussianBlur stdDeviation="18" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="shadow"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity=".42"/></filter>
+  </defs>
+  <rect width="1950" height="1300" fill="url(#bg)"/><rect width="1950" height="1300" fill="url(#grid)"/>
+  <circle cx="165" cy="190" r="13" fill="#ffbd57"/><circle cx="313" cy="1055" r="13" fill="#a06af7"/><circle cx="922" cy="1130" r="13" fill="#4fd39a"/>
+  <path d="M165 190 390 380M313 1055l237-190M922 1130 770 931" stroke="#7893ad" stroke-width="6" opacity=".52"/>
+  <g transform="translate(145 388)">
+    <text x="0" y="150" fill="#f4f8fc" font-family="Segoe UI,Arial,sans-serif" font-size="142" font-weight="750" letter-spacing="-4">Scene<tspan fill="#68d7ff">XRay</tspan></text>
+    <rect x="2" y="194" width="590" height="11" rx="6" fill="url(#scan)"/>
+    <text x="0" y="292" fill="#b9c6d6" font-family="Segoe UI,Arial,sans-serif" font-size="49" font-weight="400">See every dependency.</text>
+    <text x="0" y="360" fill="#b9c6d6" font-family="Segoe UI,Arial,sans-serif" font-size="49" font-weight="400">Fix what breaks.</text>
+  </g>
+  <g transform="translate(998 280)">
+    <path d="M5 360c116-194 252-264 386-264s270 70 386 264C661 554 525 624 391 624S121 554 5 360Z" fill="#142130" stroke="url(#scan)" stroke-width="18" filter="url(#glow)"/>
+    <circle cx="391" cy="360" r="160" fill="url(#iris)"/><circle cx="391" cy="360" r="62" fill="#07101a"/><circle cx="347" cy="309" r="25" fill="#fff" opacity=".9"/>
+  </g>
+  <g filter="url(#shadow)">
+    <g transform="translate(970 938)"><rect width="275" height="96" rx="15" fill="#242d3c" stroke="#ffbd57" stroke-width="6"/><circle cx="39" cy="48" r="13" fill="#ffbd57"/><rect x="70" y="34" width="159" height="28" rx="14" fill="#93a6bb" opacity=".72"/></g>
+    <g transform="translate(1320 1010)"><rect width="300" height="96" rx="15" fill="#332140" stroke="#a06af7" stroke-width="6"/><circle cx="39" cy="48" r="13" fill="#a06af7"/><rect x="70" y="34" width="184" height="28" rx="14" fill="#b79bda" opacity=".72"/></g>
+    <g transform="translate(1650 905)"><rect width="240" height="96" rx="15" fill="#19332e" stroke="#4fd39a" stroke-width="6"/><circle cx="39" cy="48" r="13" fill="#4fd39a"/><rect x="70" y="34" width="124" height="28" rx="14" fill="#8cc9b7" opacity=".72"/></g>
+    <path d="M1245 986c63 0 64 72 75 72m300 0c36 0 25-105 30-105" fill="none" stroke="#6fcff7" stroke-width="8"/>
+  </g>
+</svg>

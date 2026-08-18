@@ -2,32 +2,27 @@ using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.UIElements;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using UnityEditor;
+
+[assembly: InternalsVisibleTo("SceneXRay.Editor.Tests")]
 
 namespace SceneXRay.Editor.UI
 {
-    /// <summary>
-    /// Compact dependency-graph node card: object icon + name + link-count badge.
-    /// The default GraphView collapse button and port names are hidden via USS.
-    /// </summary>
     public class XRayNode : Node
     {
         public GameObject GameObject { get; private set; }
 
-        /// <summary>Referenced asset (ScriptableObject, material, …) for synthetic asset nodes.</summary>
         public Object Asset { get; private set; }
 
         public string Title { get; private set; }
         public string PrefabName { get; private set; }
 
-        /// <summary>Hierarchy path (or asset/missing hint) shown under the title.</summary>
         public string Subtitle { get; private set; }
 
         private int _dependencyCount;
         private readonly Label _countBadge;
-        // GraphElement.GetPosition() reads resolved layout, which stays (0,0) until the next
-        // UI Toolkit pass — so SaveFullGraphPositions / Force / FrameAll saw zeros and
-        // Back restored every node on top of each other. Cache what SetPosition wrote.
+
         private Rect _storedPosition;
         private bool _hasStoredPosition;
 
@@ -51,28 +46,23 @@ namespace SceneXRay.Editor.UI
 
             AddToClassList("graph-node");
 
-            // Hide the expand/collapse chevron — nodes have no expandable body.
             if (titleButtonContainer != null)
                 titleButtonContainer.style.display = DisplayStyle.None;
 
-            // Icon before the title.
             var icon = new Image { name = "node-icon", scaleMode = ScaleMode.ScaleToFit };
             icon.image = ResolveIcon(go, customTitle, asset);
             titleContainer.Insert(0, icon);
 
-            // Link-count badge after the title.
             _countBadge = new Label("") { name = "count-badge" };
             _countBadge.style.display = DisplayStyle.None;
             titleContainer.Add(_countBadge);
 
-            // Second line: scene path disambiguates the many same-named objects a scene has.
             Subtitle = BuildSubtitle(go, customTitle, asset);
             var subtitleLabel = new Label(Subtitle) { name = "node-subtitle", pickingMode = PickingMode.Ignore };
             topContainer.Insert(1, subtitleLabel);
 
             if (go != null)
             {
-                // Prefab instance marker
                 var prefab = PrefabUtility.GetCorrespondingObjectFromSource(go);
                 if (prefab != null)
                 {
@@ -81,10 +71,6 @@ namespace SceneXRay.Editor.UI
                 }
             }
 
-            // Built on hover: doing the component summary per node up front cost a
-            // GetComponents() allocation plus a string join for every card in the graph.
-            // The `tooltip` property stays empty on purpose — VisualElement's default
-            // TooltipEvent handler runs after this callback and would overwrite the text.
             RegisterCallback<TooltipEvent>(evt =>
             {
                 evt.tooltip = BuildTooltip();
@@ -92,7 +78,6 @@ namespace SceneXRay.Editor.UI
                 evt.StopImmediatePropagation();
             });
 
-            // Ports
             var inputPort = Port.Create<Edge>(Orientation.Horizontal, Direction.Input, Port.Capacity.Multi, typeof(GameObject));
             inputPort.portName = "";
             inputPort.AddToClassList("input-port");
@@ -104,10 +89,9 @@ namespace SceneXRay.Editor.UI
             outputContainer.Add(outputPort);
 
             RefreshPorts();
-            // Context menu is owned by XRayVirtualGraphView.BuildContextualMenu (no GraphView junk).
         }
 
-        private string BuildTooltip()
+        internal string BuildTooltip()
         {
             if (GameObject == null)
             {
@@ -124,14 +108,12 @@ namespace SceneXRay.Editor.UI
                    $"Components: {compNames}\n\nDouble-click / Enter = focus\nAlt+← Back · − shrink · = expand · Esc up";
         }
 
-        /// <summary>Parent chain, trimmed to the last two levels so the card stays narrow.</summary>
         private static string BuildSubtitle(GameObject go, string customTitle, Object asset)
         {
             if (go == null)
             {
                 if (asset != null)
                 {
-                    // Folder of the asset reads better than a generic "Asset" label.
                     string path = AssetDatabase.GetAssetPath(asset);
                     if (!string.IsNullOrEmpty(path))
                     {
@@ -195,7 +177,6 @@ namespace SceneXRay.Editor.UI
             return new Rect(_storedPosition.x, _storedPosition.y, w, h);
         }
 
-        /// <summary>Selecting a node selects the underlying object in Hierarchy / Project.</summary>
         public override void OnSelected()
         {
             base.OnSelected();
@@ -205,13 +186,8 @@ namespace SceneXRay.Editor.UI
         }
     }
 
-    /// <summary>
-    /// Pushes graph selection into the editor's Selection without letting Follow mode
-    /// bounce it straight back into a new focus/navigation step.
-    /// </summary>
     internal static class XRaySelectionSync
     {
-        /// <summary>True while the editor Selection is being driven by the graph itself.</summary>
         public static bool Suppress { get; private set; }
 
         public static void SelectFromGraph(Object target)

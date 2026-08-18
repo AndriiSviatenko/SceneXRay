@@ -1,26 +1,22 @@
 using System;
 using System.Collections.Generic;
 using SceneXRay.Editor.UI;
+using SceneXRay.Editor.Core;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace SceneXRay.Editor.Windows
 {
-    /// <summary>
-    /// Shared report surface: sectioned, scrollable, rows click through to their object.
-    /// Replaces the text-blob EditorUtility.DisplayDialog calls — those could not be
-    /// scrolled, copied from, or clicked, and truncated on long lists.
-    /// </summary>
     public class XRayReportWindow : EditorWindow
     {
         public sealed class Row
         {
             public string Label;
             public string Meta;
-            /// <summary>Clicking the row selects and pings this object.</summary>
+
             public UnityEngine.Object Target;
-            /// <summary>Accent bar colour; defaults to the neutral link colour.</summary>
+
             public Color? Accent;
         }
 
@@ -34,7 +30,6 @@ namespace SceneXRay.Editor.Windows
         private string _summary;
         private List<Section> _sections = new();
 
-        /// <summary>Opens (or reuses) the report window.</summary>
         public static XRayReportWindow Show(string title, string summary, List<Section> sections)
         {
             var window = GetWindow<XRayReportWindow>(utility: false, title: "SceneXRay Report", focus: true);
@@ -47,7 +42,6 @@ namespace SceneXRay.Editor.Windows
             return window;
         }
 
-        /// <summary>Single-section convenience overload.</summary>
         public static XRayReportWindow Show(string title, string summary, string sectionTitle,
             IEnumerable<Row> rows, string emptyText = null)
         {
@@ -63,8 +57,7 @@ namespace SceneXRay.Editor.Windows
             var root = rootVisualElement;
             root.Clear();
 
-            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Assets/SceneXRay/Editor/Styles/XRayStyles.uss");
+            var styleSheet = SceneXRayCompat.LoadStyleSheet();
             if (styleSheet != null && !root.styleSheets.Contains(styleSheet))
                 root.styleSheets.Add(styleSheet);
 
@@ -179,7 +172,6 @@ namespace SceneXRay.Editor.Windows
             return label;
         }
 
-        /// <summary>Row helper for the common "object + description" case.</summary>
         public static Row MakeRow(UnityEngine.Object target, string label, string meta, Color? accent = null) =>
             new Row { Target = target, Label = label, Meta = meta, Accent = accent };
     }

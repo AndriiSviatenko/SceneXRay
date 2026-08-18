@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="280" viewBox="0 0 420 280">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#141d2a"/><stop offset="1" stop-color="#080c12"/></linearGradient>
+    <linearGradient id="scan" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#61d6ff"/><stop offset="1" stop-color="#a06af7"/></linearGradient>
+    <radialGradient id="iris"><stop stop-color="#eaffff"/><stop offset=".22" stop-color="#66d9ff"/><stop offset=".72" stop-color="#6079f4"/><stop offset="1" stop-color="#9f5cf5"/></radialGradient>
+    <pattern id="grid" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0H0V22" fill="none" stroke="#8ba2bd" stroke-opacity=".09"/></pattern>
+    <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="420" height="280" fill="url(#bg)"/><rect width="420" height="280" fill="url(#grid)"/>
+  <circle cx="74" cy="34" r="5" fill="#ffbd57"/><circle cx="32" cy="232" r="5" fill="#a06af7"/><circle cx="192" cy="246" r="5" fill="#4fd39a"/>
+  <path d="M74 34 114 91M32 232l77-45M192 246l-42-44" stroke="#7893ad" stroke-width="2" opacity=".65"/>
+  <g transform="translate(20 46)">
+    <path d="M10 94c25-43 55-58 83-58s58 15 83 58c-25 43-55 58-83 58S35 137 10 94Z" fill="#152130" stroke="url(#scan)" stroke-width="5" filter="url(#glow)"/>
+    <circle cx="93" cy="94" r="36" fill="url(#iris)"/><circle cx="93" cy="94" r="14" fill="#08101b"/><circle cx="83" cy="82" r="6" fill="white" opacity=".9"/>
+  </g>
+  <g transform="translate(215 86)">
+    <text x="0" y="46" fill="#f3f7fb" font-family="Segoe UI,Arial,sans-serif" font-size="35" font-weight="700" letter-spacing="-.6">Scene<tspan fill="#68d7ff">XRay</tspan></text>
+    <rect x="1" y="65" width="171" height="4" rx="2" fill="url(#scan)"/>
+    <g transform="translate(4 91)" fill="#111824" stroke-width="2"><circle cx="7" cy="7" r="7" stroke="#ffbd57"/><circle cx="65" cy="7" r="7" stroke="#61d6ff"/><circle cx="123" cy="7" r="7" stroke="#a06af7"/><path d="M14 7h44m14 0h44" stroke="#7893ad"/></g>
+  </g>
+</svg>

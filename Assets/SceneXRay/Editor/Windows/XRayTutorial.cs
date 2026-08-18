@@ -1,34 +1,27 @@
 using SceneXRay.Editor.UI;
+using SceneXRay.Editor.Core;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace SceneXRay.Editor.Windows
 {
-    /// <summary>First-run walkthrough. Shown once, re-openable from Tools > SceneXRay > Advanced.</summary>
     public class XRayTutorial : EditorWindow
     {
-        private static readonly (string Title, string Body)[] Steps =
+        private static readonly (string TitleKey, string BodyKey)[] Steps =
         {
-            ("Welcome to SceneXRay",
-                "See every dependency in your scene as a graph — who references what, what is missing, and where the cycles are."),
-            ("1 · Select an object",
-                "Pick any GameObject. The Scene View overlay draws its dependency links right where the objects are."),
-            ("2 · Open the graph",
-                "Tools > SceneXRay > Open Graph View (Ctrl+Shift+Alt+X). Nodes are objects, edges are references. Double-click a node to drill in, Backspace to go back."),
-            ("3 · Narrow it down",
-                "Filter by name, component or hierarchy depth. Hover a node to light up its neighbours and dim the rest."),
-            ("4 · Export it",
-                "JSON, CSV, HTML, PlantUML, Mermaid or Markdown — share the architecture with your team."),
-            ("5 · Watch the health score",
-                "The toolbar score drops with every missing reference and dependency cycle it finds."),
-            ("You're ready 🎉",
-                "Everything lives under Tools > SceneXRay. Bookmarks: Ctrl+Shift+Alt+J.")
+            ("tutorial_welcome_title", "tutorial_welcome_body"),
+            ("tutorial_select_title", "tutorial_select_body"),
+            ("tutorial_graph_title", "tutorial_graph_body"),
+            ("tutorial_filter_title", "tutorial_filter_body"),
+            ("tutorial_export_title", "tutorial_export_body"),
+            ("tutorial_health_title", "tutorial_health_body"),
+            ("tutorial_ready_title", "tutorial_ready_body")
         };
 
         private int _step;
         private Label _title, _body, _counter;
-        private Button _nextBtn;
+        private Button _nextBtn, _skipBtn;
         private VisualElement _dots;
 
         [InitializeOnLoadMethod]
@@ -41,7 +34,7 @@ namespace SceneXRay.Editor.Windows
         public static void ShowWindow()
         {
             var wnd = GetWindow<XRayTutorial>();
-            wnd.titleContent = new GUIContent("Welcome to SceneXRay");
+            wnd.titleContent = new GUIContent(XRayLocalization.GetText("tutorial_window_title"));
             wnd.minSize = new Vector2(440, 260);
             wnd.Show();
         }
@@ -49,8 +42,9 @@ namespace SceneXRay.Editor.Windows
         private void OnEnable()
         {
             var root = rootVisualElement;
+            root.Clear();
 
-            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/SceneXRay/Editor/Styles/XRayStyles.uss");
+            var styleSheet = SceneXRayCompat.LoadStyleSheet();
             if (styleSheet != null)
                 root.styleSheets.Add(styleSheet);
             root.AddToClassList("xray-window");
@@ -92,17 +86,23 @@ namespace SceneXRay.Editor.Windows
             {
                 style = { flexDirection = FlexDirection.Row, justifyContent = Justify.Center }
             };
-            var skipBtn = new Button(Close) { text = XRayLocalization.GetText("skip") };
-            skipBtn.AddToClassList("xray-btn");
-            _nextBtn = new Button(NextStep) { text = XRayLocalization.GetText("next") };
+            _skipBtn = new Button(Close);
+            _skipBtn.AddToClassList("xray-btn");
+            _nextBtn = new Button(NextStep);
             _nextBtn.AddToClassList("xray-btn");
             _nextBtn.AddToClassList("xray-btn--primary");
-            buttonRow.Add(skipBtn);
+            buttonRow.Add(_skipBtn);
             buttonRow.Add(_nextBtn);
             body.Add(buttonRow);
 
+            XRayLocalization.LanguageChanged += ApplyStep;
             ApplyStep();
             EditorPrefs.SetBool("SceneXRay_TutorialShown", true);
+        }
+
+        private void OnDisable()
+        {
+            XRayLocalization.LanguageChanged -= ApplyStep;
         }
 
         private void NextStep()
@@ -118,9 +118,11 @@ namespace SceneXRay.Editor.Windows
 
         private void ApplyStep()
         {
-            _title.text = Steps[_step].Title;
-            _body.text = Steps[_step].Body;
+            titleContent = new GUIContent(XRayLocalization.GetText("tutorial_window_title"));
+            _title.text = XRayLocalization.GetText(Steps[_step].TitleKey);
+            _body.text = XRayLocalization.GetText(Steps[_step].BodyKey);
             _counter.text = XRayLocalization.Format("tutorial_step", _step + 1, Steps.Length);
+            _skipBtn.text = XRayLocalization.GetText("skip");
             _nextBtn.text = _step >= Steps.Length - 1
                 ? XRayLocalization.GetText("tutorial_finish")
                 : XRayLocalization.GetText("next");

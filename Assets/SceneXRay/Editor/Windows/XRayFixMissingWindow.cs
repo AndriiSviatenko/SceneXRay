@@ -2,6 +2,7 @@ using SceneXRay.Editor.UI;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UIElements;
 using SceneXRay.Editor.Core;
@@ -9,26 +10,27 @@ using UnityEditor.UIElements;
 
 namespace SceneXRay.Editor.Windows
 {
-    /// <summary>Lists missing references in loaded scenes and applies best-effort name-based fixes.</summary>
     public class XRayFixMissingWindow : EditorWindow
     {
         private List<DependencyLink> _missingLinks = new List<DependencyLink>();
         private ListView _listView;
         private Label _countChip;
         private VisualElement _emptyState;
-        private Button _fixAllBtn, _fixSelectedBtn;
+        private Button _refreshBtn, _fixAllBtn, _fixSelectedBtn;
+        private Label _titleLabel, _hintLabel;
         private Label _status;
 
         public static void ShowWindow() => GetWindow<XRayFixMissingWindow>().Show();
 
         private void OnEnable()
         {
-            titleContent = new GUIContent("Fix Missing References");
+            titleContent = new GUIContent(XRayLocalization.GetText("fix_missing_title"));
             minSize = new Vector2(460, 260);
 
             var root = rootVisualElement;
+            root.Clear();
 
-            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Assets/SceneXRay/Editor/Styles/XRayStyles.uss");
+            var styleSheet = SceneXRayCompat.LoadStyleSheet();
             if (styleSheet != null)
                 root.styleSheets.Add(styleSheet);
             root.AddToClassList("xray-window");
@@ -36,9 +38,13 @@ namespace SceneXRay.Editor.Windows
             root.EnableInClassList("xray-light", !EditorGUIUtility.isProSkin);
 
             var toolbar = new Toolbar();
-            toolbar.Add(new Button(Refresh) { text = XRayLocalization.GetText("refresh") });
-            _fixAllBtn = new Button(FixAll) { text = "Fix All" };
-            _fixSelectedBtn = new Button(FixSelected) { text = "Fix Selected" };
+            _refreshBtn = new Button(Refresh);
+            _refreshBtn.AddToClassList("xray-toolbar-btn");
+            toolbar.Add(_refreshBtn);
+            _fixAllBtn = new Button(FixAll);
+            _fixAllBtn.AddToClassList("xray-toolbar-btn");
+            _fixSelectedBtn = new Button(FixSelected);
+            _fixSelectedBtn.AddToClassList("xray-toolbar-btn");
             toolbar.Add(_fixAllBtn);
             toolbar.Add(_fixSelectedBtn);
             root.Add(toolbar);
@@ -48,18 +54,18 @@ namespace SceneXRay.Editor.Windows
             root.Add(body);
 
             var header = new VisualElement { style = { flexDirection = FlexDirection.Row, alignItems = Align.Center } };
-            var title = new Label(XRayLocalization.GetText("fix_missing"));
-            title.AddToClassList("xray-title");
-            header.Add(title);
+            _titleLabel = new Label();
+            _titleLabel.AddToClassList("xray-title");
+            header.Add(_titleLabel);
             _countChip = new Label("0");
             _countChip.AddToClassList("xray-chip");
             _countChip.AddToClassList("xray-chip--danger");
             header.Add(_countChip);
             body.Add(header);
 
-            var hint = new Label(XRayLocalization.GetText("fix_missing_hint"));
-            hint.AddToClassList("xray-subtle");
-            body.Add(hint);
+            _hintLabel = new Label();
+            _hintLabel.AddToClassList("xray-subtle");
+            body.Add(_hintLabel);
 
             _status = new Label { style = { display = DisplayStyle.None } };
             _status.AddToClassList("xray-health__details");
@@ -89,7 +95,39 @@ namespace SceneXRay.Editor.Windows
             _emptyState = BuildEmptyState();
             panel.Add(_emptyState);
 
+            PrefabStage.prefabStageOpened += OnPrefabStageChanged;
+            PrefabStage.prefabStageClosing += OnPrefabStageChanged;
+            XRayLocalization.LanguageChanged += ApplyLocalizedTexts;
+
+            ApplyLocalizedTexts();
             Refresh();
+        }
+
+        private void OnDisable()
+        {
+            PrefabStage.prefabStageOpened -= OnPrefabStageChanged;
+            PrefabStage.prefabStageClosing -= OnPrefabStageChanged;
+            XRayLocalization.LanguageChanged -= ApplyLocalizedTexts;
+        }
+
+        private void ApplyLocalizedTexts()
+        {
+            titleContent = new GUIContent(XRayLocalization.GetText("fix_missing_title"));
+            if (_refreshBtn == null) return;
+
+            _refreshBtn.text = XRayLocalization.GetText("refresh");
+            _fixAllBtn.text = XRayLocalization.GetText("fix_all");
+            _fixSelectedBtn.text = XRayLocalization.GetText("fix_selected");
+            _titleLabel.text = XRayLocalization.GetText("fix_missing");
+            _hintLabel.text = XRayLocalization.GetText("fix_missing_hint");
+            _emptyState.Q<Label>("empty-title").text = XRayLocalization.GetText("fix_missing_none");
+            _emptyState.Q<Label>("empty-hint").text = XRayLocalization.GetText("fix_missing_none_hint");
+            _listView?.RefreshItems();
+        }
+
+        private void OnPrefabStageChanged(PrefabStage stage)
+        {
+            EditorApplication.delayCall += () => { if (this != null) Refresh(); };
         }
 
         private static VisualElement MakeRow()
@@ -110,7 +148,7 @@ namespace SceneXRay.Editor.Windows
             meta.AddToClassList("xray-row__meta");
             row.Add(meta);
 
-            var tag = new Label("Missing") { name = "tag" };
+            var tag = new Label { name = "tag" };
             tag.AddToClassList("xray-row__tag");
             row.Add(tag);
 
@@ -127,8 +165,11 @@ namespace SceneXRay.Editor.Windows
                 ? AssetPreview.GetMiniThumbnail(link.Source)
                 : EditorGUIUtility.IconContent("console.erroricon.sml").image;
 
-            element.Q<Label>("name").text = link.Source != null ? link.Source.name : "<destroyed>";
+            element.Q<Label>("name").text = link.Source != null
+                ? link.Source.name
+                : XRayLocalization.GetText("destroyed");
             element.Q<Label>("meta").text = $"{link.SourceComponentName}.{link.SourcePropertyName}";
+            element.Q<Label>("tag").text = XRayLocalization.GetText("missing");
         }
 
         private static VisualElement BuildEmptyState()
@@ -136,11 +177,11 @@ namespace SceneXRay.Editor.Windows
             var wrap = new VisualElement();
             wrap.AddToClassList("xray-empty-state");
 
-            var title = new Label(XRayLocalization.GetText("fix_missing_none"));
+            var title = new Label { name = "empty-title" };
             title.AddToClassList("xray-empty-state__title");
             wrap.Add(title);
 
-            var hint = new Label(XRayLocalization.GetText("fix_missing_none_hint"));
+            var hint = new Label { name = "empty-hint" };
             hint.AddToClassList("xray-empty-state__hint");
             wrap.Add(hint);
 
@@ -167,7 +208,7 @@ namespace SceneXRay.Editor.Windows
         {
             var selected = _listView.selectedItems.Cast<DependencyLink>().ToList();
             int fixedCount = 0;
-            // One undo step for the whole batch — otherwise Ctrl+Z unwinds them one by one.
+
             UndoIntegration.PerformUndoableAction(
                 () => fixedCount = selected.Count(FixLink), "SceneXRay Fix Missing References");
             Refresh();
@@ -184,7 +225,6 @@ namespace SceneXRay.Editor.Windows
             SetStatus(fixedCount, total);
         }
 
-        /// <summary>Inline result line — a modal for "fixed 3 of 5" was pure friction.</summary>
         private void SetStatus(int fixedCount, int attempted)
         {
             if (_status == null) return;
@@ -193,10 +233,6 @@ namespace SceneXRay.Editor.Windows
             _status.style.display = DisplayStyle.Flex;
         }
 
-        /// <summary>
-        /// Best-effort fix: finds the broken ObjectReference property on the source component
-        /// and tries to rebind it to a scene object whose name matches the property name.
-        /// </summary>
         private static bool FixLink(DependencyLink link)
         {
             if (link.Source == null || string.IsNullOrEmpty(link.SourceComponentName)) return false;
@@ -208,24 +244,37 @@ namespace SceneXRay.Editor.Windows
             using (var so = new SerializedObject(comp))
             {
                 var prop = so.GetIterator();
-                while (prop.NextVisible(true))
+                while (prop.Next(true))
                 {
                     if (prop.propertyType != SerializedPropertyType.ObjectReference) continue;
                     if (prop.displayName != link.SourcePropertyName) continue;
-                    if (prop.objectReferenceValue != null || prop.objectReferenceInstanceIDValue == 0) continue;
+                    if (!SceneXRayCompat.IsBrokenReference(prop)) continue;
 
-                    // Heuristic: a scene object named like the property (e.g. "Player Target" -> "PlayerTarget").
                     string candidateName = link.SourcePropertyName.Replace(" ", "");
-                    var candidate = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                    var candidate = CandidateObjects()
                         .FirstOrDefault(g => string.Equals(g.name.Replace(" ", ""), candidateName, System.StringComparison.OrdinalIgnoreCase));
                     if (candidate == null) return false;
 
                     Undo.RecordObject(comp, "SceneXRay Fix Missing Reference");
                     prop.objectReferenceValue = candidate;
-                    return so.ApplyModifiedProperties();
+                    if (!so.ApplyModifiedProperties()) return false;
+
+                    var stage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
+                    if (stage != null)
+                        EditorSceneManager.MarkSceneDirty(stage.scene);
+                    return true;
                 }
             }
             return false;
+        }
+
+        private static IEnumerable<GameObject> CandidateObjects()
+        {
+            var stage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
+            if (stage != null && stage.prefabContentsRoot != null)
+                return stage.prefabContentsRoot.GetComponentsInChildren<Transform>(true).Select(t => t.gameObject);
+
+            return SceneXRayCompat.FindAll<GameObject>();
         }
     }
 }

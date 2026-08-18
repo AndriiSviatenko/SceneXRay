@@ -65,3 +65,38 @@ crashlytics-build.properties
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ── AI assistant / agent tooling ───────────────────────────────
+# Local scratch, session state and per-machine config from coding agents.
+# None of this belongs to the product and none of it ships in the package.
+.claude/
+.cursor/
+.cursorignore
+.cursorrules
+.aider*
+.continue/
+.windsurf/
+.windsurfrules
+.codeium/
+.cline/
+.clinerules
+.roo/
+.roomodes
+.gemini/
+.opencode/
+.serena/
+.specstory/
+.sourcegraph/
+.github/copilot-instructions.md
+.mcp.json
+.aiderignore
+.claudeignore
+
+# Agent instruction files. Delete a line here if you decide to share one with
+# the team — they are ignored by default so a local experiment never lands in a
+# release commit by accident.
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+.github/instructions/

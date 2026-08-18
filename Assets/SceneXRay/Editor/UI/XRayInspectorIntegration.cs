@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using SceneXRay.Editor.Windows;
 using UnityEngine;
 using SceneXRay.Editor.Core;
@@ -7,9 +7,6 @@ using System.Linq;
 
 namespace SceneXRay.Editor.UI
 {
-    /// <summary>
-    /// Inspector dependency strip — padded to match Transform fields, graph-like cards.
-    /// </summary>
     [InitializeOnLoad]
     public static class XRayInspectorIntegration
     {
@@ -19,17 +16,17 @@ namespace SceneXRay.Editor.UI
         private const float CardPad = 3f;
         private const float ArrowW = 20f;
         private const float FieldW = 112f;
-        /// <summary>Match Unity inspector content inset so headers/cards don't kiss the window edge.</summary>
+
         private const float SidePad = 14f;
 
         private class CacheEntry
         {
             public List<DependencyLink> Outgoing;
-            public LinkedListNode<int> LruNode;
+            public LinkedListNode<ulong> LruNode;
         }
 
-        private static readonly Dictionary<int, CacheEntry> _cache = new();
-        private static readonly LinkedList<int> _lru = new();
+        private static readonly Dictionary<ulong, CacheEntry> _cache = new();
+        private static readonly LinkedList<ulong> _lru = new();
 
         private static readonly Color ColDirect = new(0.38f, 0.59f, 0.86f);
         private static readonly Color ColEvent = new(0.90f, 0.76f, 0.27f);
@@ -49,7 +46,7 @@ namespace SceneXRay.Editor.UI
             UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
         }
 
-        private static CacheEntry TouchCache(int id)
+        private static CacheEntry TouchCache(ulong id)
         {
             if (_cache.TryGetValue(id, out var entry))
             {
@@ -64,14 +61,14 @@ namespace SceneXRay.Editor.UI
 
             while (_cache.Count > CacheLimit)
             {
-                int evicted = _lru.Last.Value;
+                ulong evicted = _lru.Last.Value;
                 _lru.RemoveLast();
                 _cache.Remove(evicted);
             }
             return entry;
         }
 
-        private static List<DependencyLink> GetOutgoing(GameObject go, int id)
+        private static List<DependencyLink> GetOutgoing(GameObject go, ulong id)
         {
             if (XRayReferenceIndex.IsReady)
             {
@@ -113,14 +110,13 @@ namespace SceneXRay.Editor.UI
             if (!XRayReferenceIndex.IsReady)
                 XRayReferenceIndex.RebuildImmediate();
 
-            int id = go.GetInstanceID();
+            ulong id = SceneXRayCompat.IdOf(go);
             var outgoing = GetOutgoing(go, id);
             var incoming = GetIncoming(go);
             if (outgoing.Count == 0 && incoming.Count == 0) return;
 
             Styles.Ensure();
 
-            // Outer inset — prevents header/cards from bleeding into the inspector chrome.
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Space(SidePad);
@@ -129,12 +125,12 @@ namespace SceneXRay.Editor.UI
                     GUILayout.Space(4);
 
                     if (outgoing.Count > 0)
-                        DrawSection("References", outgoing, PrefsPrefix + "out_", go, incoming: false);
+                        DrawSection(XRayLocalization.GetText("references"), outgoing, PrefsPrefix + "out_", go, incoming: false);
 
                     if (incoming.Count > 0)
                     {
                         GUILayout.Space(4);
-                        DrawSection("Referenced By", incoming, PrefsPrefix + "in_", go, incoming: true);
+                        DrawSection(XRayLocalization.GetText("referenced_by"), incoming, PrefsPrefix + "in_", go, incoming: true);
                     }
 
                     GUILayout.Space(6);
@@ -143,18 +139,13 @@ namespace SceneXRay.Editor.UI
             }
         }
 
-        /// <summary>
-        /// Prefab asset inspectors: what the whole prefab tree references (materials, meshes,
-        /// clips, ScriptableObjects…) plus the scene objects that point at the prefab.
-        /// The tree scan is LRU-cached and invalidated with the reference index.
-        /// </summary>
         private static void DrawPrefabAssetStrip(GameObject prefabRoot)
         {
             if (!PrefabUtility.IsPartOfPrefabAsset(prefabRoot)) return;
-            // Only the asset root — child inspectors would repeat the same list.
+
             if (prefabRoot.transform.parent != null) return;
 
-            int id = prefabRoot.GetInstanceID();
+            ulong id = SceneXRayCompat.IdOf(prefabRoot);
             var entry = TouchCache(id);
             entry.Outgoing ??= PrefabScanner.ScanPrefab(prefabRoot);
 
@@ -177,12 +168,12 @@ namespace SceneXRay.Editor.UI
                     GUILayout.Space(4);
 
                     if (outgoing.Count > 0)
-                        DrawSection("References", outgoing, PrefsPrefix + "prefab_out_", prefabRoot, incoming: false);
+                        DrawSection(XRayLocalization.GetText("references"), outgoing, PrefsPrefix + "prefab_out_", prefabRoot, incoming: false);
 
                     if (incoming.Count > 0)
                     {
                         GUILayout.Space(4);
-                        DrawSection("Referenced By", incoming, PrefsPrefix + "prefab_in_", prefabRoot, incoming: true);
+                        DrawSection(XRayLocalization.GetText("referenced_by"), incoming, PrefsPrefix + "prefab_in_", prefabRoot, incoming: true);
                     }
 
                     GUILayout.Space(6);
@@ -191,11 +182,6 @@ namespace SceneXRay.Editor.UI
             }
         }
 
-        /// <summary>
-        /// Asset inspectors (ScriptableObject, material, …) get a "Referenced By" strip listing
-        /// the scene objects that point at them. Read-only: never forces an index rebuild, so
-        /// clicking through the Project window stays cheap.
-        /// </summary>
         private static void DrawAssetStrip(Object asset)
         {
             if (asset == null) return;
@@ -208,7 +194,7 @@ namespace SceneXRay.Editor.UI
 
             Styles.Ensure();
 
-            string key = PrefsPrefix + "asset_" + asset.GetInstanceID();
+            string key = PrefsPrefix + "asset_" + SceneXRayCompat.IdOf(asset);
             bool open = EditorPrefs.GetBool(key, true);
 
             using (new EditorGUILayout.HorizontalScope())
@@ -220,8 +206,8 @@ namespace SceneXRay.Editor.UI
 
                     using (new EditorGUILayout.HorizontalScope(GUILayout.Height(20)))
                     {
-                        var titleContent = new GUIContent("Referenced By",
-                            open ? "Click to collapse" : "Click to expand");
+                        var titleContent = new GUIContent(XRayLocalization.GetText("referenced_by"),
+                            XRayLocalization.GetText(open ? "collapse" : "expand"));
                         if (GUILayout.Button(titleContent, open ? Styles.HeaderOpen : Styles.HeaderClosed,
                                 GUILayout.ExpandWidth(false)))
                         {
@@ -233,7 +219,7 @@ namespace SceneXRay.Editor.UI
                         DrawCountBadge(incoming.Count);
                         GUILayout.FlexibleSpace();
 
-                        if (TextAction("Graph", "Focus this asset in SceneXRay Graph"))
+                        if (TextAction(XRayLocalization.GetText("open_graph"), XRayLocalization.GetText("focus_in_graph")))
                             XRayWindow.ShowWindowFocusedAsset(asset);
                     }
 
@@ -262,12 +248,12 @@ namespace SceneXRay.Editor.UI
             GameObject current,
             bool incoming)
         {
-            string key = keyPrefix + current.GetInstanceID();
+            string key = keyPrefix + SceneXRayCompat.IdOf(current);
             bool open = EditorPrefs.GetBool(key, true);
 
             using (new EditorGUILayout.HorizontalScope(GUILayout.Height(20)))
             {
-                var titleContent = new GUIContent(title, open ? "Click to collapse" : "Click to expand");
+                var titleContent = new GUIContent(title, XRayLocalization.GetText(open ? "collapse" : "expand"));
                 if (GUILayout.Button(titleContent, open ? Styles.HeaderOpen : Styles.HeaderClosed, GUILayout.ExpandWidth(false)))
                 {
                     open = !open;
@@ -278,10 +264,10 @@ namespace SceneXRay.Editor.UI
                 DrawCountBadge(links.Count);
                 GUILayout.FlexibleSpace();
 
-                if (TextAction("Graph", "Focus this object in SceneXRay Graph"))
+                if (TextAction(XRayLocalization.GetText("open_graph"), XRayLocalization.GetText("focus_in_graph")))
                     XRayWindow.ShowWindowFocused(current);
                 GUILayout.Space(4);
-                if (TextAction("Refs", "Open the references browser"))
+                if (TextAction(XRayLocalization.GetText("references"), XRayLocalization.GetText("open_references")))
                     XRayReferencesWindow.ShowFor(current);
             }
 
@@ -362,7 +348,7 @@ namespace SceneXRay.Editor.UI
                 DrawArrow(arrow, accent);
                 Rect chipArea = new Rect(arrow.xMax + 2f, chipY, padR - (arrow.xMax + 2f), chipH);
                 if (link.IsMissing)
-                    GUI.Label(chipArea, "Missing", Styles.Missing);
+                    GUI.Label(chipArea, XRayLocalization.GetText("missing"), Styles.Missing);
                 else if (link.TargetAsset != null)
                     DrawAssetChip(chipArea, link.TargetAsset, accent);
                 else

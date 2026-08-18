@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using SceneXRay.Editor.Exporters;
 using SceneXRay.Editor.Windows;
 using System.Collections.Generic;
@@ -20,10 +20,6 @@ namespace SceneXRay.Editor.UI
         Incoming = 2
     }
 
-    /// <summary>
-    /// Paged GraphView with browser-style drill-in focus, camera history, and radius/direction filters.
-    /// Back restores the previous view (pan/zoom + page + focus) — it does not re-spawn/relayout the full graph.
-    /// </summary>
     public partial class XRayVirtualGraphView : GraphView
     {
         private const float ColumnSpacing = 280f;
@@ -33,9 +29,9 @@ namespace SceneXRay.Editor.UI
 
         private sealed class FocusState
         {
-            public GameObject Center; // null = show all
+            public GameObject Center;
             public string CenterGlobalId;
-            /// <summary>Asset (ScriptableObject, material, …) focus — the graph's synthetic asset nodes.</summary>
+
             public UnityEngine.Object CenterAsset;
             public string CenterAssetGuid;
             public int Radius = 1;
@@ -45,9 +41,6 @@ namespace SceneXRay.Editor.UI
             public Vector3 ViewPosition;
             public Vector3 ViewScale = Vector3.one;
 
-            // Unity returns a non-empty "null" GlobalObjectId for some transient GOs
-            // (EditMode tests, unsaved objects). Treating it as a real id made every
-            // FocusOn look like SameFocus — Back/history collapsed to one entry.
             private static bool IsUsableGlobalId(string id) =>
                 !string.IsNullOrEmpty(id) &&
                 id != "GlobalObjectId_V1-0-00000000000000000000000000000000-0-0";
@@ -56,7 +49,6 @@ namespace SceneXRay.Editor.UI
 
             public bool IsShowAll => Center == null && !IsUsableGlobalId(CenterGlobalId) && !IsAssetFocus;
 
-            /// <summary>Identity used for history dedupe and breadcrumb labels.</summary>
             public UnityEngine.Object CenterObject => Center != null ? Center : CenterAsset;
 
             public bool SameFocus(FocusState other)
@@ -143,13 +135,13 @@ namespace SceneXRay.Editor.UI
         private DropdownField _directionField;
         private Label _legendLabel;
 
-        /// <summary>Optional hooks for empty-canvas context menu (wired by XRayWindow).</summary>
         public Action RequestRefresh;
         public Action RequestAnalyze;
         public Action RequestExport;
         public Action RequestFixMissing;
 
         private readonly Dictionary<Node, int> _nodeDepths = new();
+        private Dictionary<Node, XRayStructuralRank.Rank> _ranks = new();
         private readonly Dictionary<Node, List<Node>> _children = new();
         private readonly Dictionary<Node, List<Node>> _parents = new();
         private readonly HashSet<GraphElement> _mountedElements = new();
@@ -187,12 +179,10 @@ namespace SceneXRay.Editor.UI
             RegisterCallback<DetachFromPanelEvent>(_ =>
                 XRayLocalization.LanguageChanged -= ApplyToolbarLocalization);
 
-            // Live graph customization: recolor edges / missing nodes when Settings change.
             SceneXRaySettings.SettingsChanged += RefreshCustomization;
             RegisterCallback<DetachFromPanelEvent>(_ =>
                 SceneXRaySettings.SettingsChanged -= RefreshCustomization);
 
-            // TrickleDown: beat GraphView's Backspace/Delete before it eats them.
             RegisterCallback<KeyDownEvent>(OnGraphKeyDown, TrickleDown.TrickleDown);
             RegisterCallback<MouseDownEvent>(_ => Focus(), TrickleDown.NoTrickleDown);
 
@@ -210,7 +200,6 @@ namespace SceneXRay.Editor.UI
             var t = e.target as VisualElement;
             if (t != null)
             {
-                // Walking up: ignore when editing text.
                 for (var ve = t; ve != null; ve = ve.parent)
                 {
                     if (ve is TextField || ve is IntegerField)
@@ -267,7 +256,7 @@ namespace SceneXRay.Editor.UI
                 case KeyCode.S when e.ctrlKey || e.commandKey:
                     SaveLayout();
                     break;
-                // Fallback for hosts that do not deliver the Undo/Redo command events.
+
                 case KeyCode.Z when (e.ctrlKey || e.commandKey) && e.shiftKey:
                 case KeyCode.Y when e.ctrlKey || e.commandKey:
                     if (!UndoJustHandled) RedoLayoutChange();
@@ -275,7 +264,7 @@ namespace SceneXRay.Editor.UI
                 case KeyCode.Z when e.ctrlKey || e.commandKey:
                     if (!UndoJustHandled) UndoLayoutChange();
                     break;
-                // Arrow keys walk between cards; Alt+←/→ is history and is handled above.
+
                 case KeyCode.LeftArrow:
                     handled = MoveSelection(Vector2.left);
                     break;
@@ -289,14 +278,12 @@ namespace SceneXRay.Editor.UI
                     handled = MoveSelection(new Vector2(0f, 1f));
                     break;
                 case KeyCode.Delete:
-                    break; // swallow — viewer only
+                    break;
                 default:
                     handled = false;
                     break;
             }
 
-            // StopImmediatePropagation alone marks the key as consumed in Unity 6;
-            // PreventDefault() is obsolete for KeyDownEvent and only produced a warning.
             if (handled)
                 e.StopImmediatePropagation();
         }
@@ -306,9 +293,9 @@ namespace SceneXRay.Editor.UI
             _toolbar = new Toolbar();
             _toolbar.AddToClassList("xray-graph-toolbar");
 
-            _backBtn = new Button(GoBack) { text = "←" };
+            _backBtn = new Button(GoBack);
             _backBtn.AddToClassList("xray-nav-btn");
-            _forwardBtn = new Button(GoForward) { text = "→" };
+            _forwardBtn = new Button(GoForward);
             _forwardBtn.AddToClassList("xray-nav-btn");
             _toolbar.Add(_backBtn);
             _toolbar.Add(_forwardBtn);
@@ -317,7 +304,7 @@ namespace SceneXRay.Editor.UI
             CreateLayoutMenu(_toolbar);
             _toolbar.Add(new ToolbarSpacer());
 
-            var radiusLabel = new Label("R") { tooltip = "Focus neighborhood radius (hops)" };
+            var radiusLabel = new Label { name = "xray-radius-label" };
             radiusLabel.AddToClassList("xray-field-label");
             _toolbar.Add(radiusLabel);
             _radiusField = new DropdownField(new List<string> { "1", "2", "3" }, 0);
@@ -325,7 +312,7 @@ namespace SceneXRay.Editor.UI
             _radiusField.RegisterValueChangedCallback(OnRadiusChanged);
             _toolbar.Add(_radiusField);
 
-            var dirLabel = new Label("Dir") { tooltip = "Focus edge direction filter" };
+            var dirLabel = new Label { name = "xray-direction-label" };
             dirLabel.AddToClassList("xray-field-label");
             _toolbar.Add(dirLabel);
             _directionField = new DropdownField(new List<string> { "Both", "Out", "In" }, 0);
@@ -351,11 +338,19 @@ namespace SceneXRay.Editor.UI
         {
             if (_backBtn == null) return;
 
+            _backBtn.text = XRayLocalization.GetText("graph_back");
+            _forwardBtn.text = XRayLocalization.GetText("graph_forward");
             _backBtn.tooltip = XRayLocalization.GetText("graph_back_tt");
             _forwardBtn.tooltip = XRayLocalization.GetText("graph_forward_tt");
             _prevPageBtn.tooltip = XRayLocalization.GetText("graph_prev_page");
             _nextPageBtn.tooltip = XRayLocalization.GetText("graph_next_page");
             _radiusField.tooltip = XRayLocalization.GetText("graph_radius_tt");
+            var radiusLabel = _toolbar.Q<Label>("xray-radius-label");
+            if (radiusLabel != null)
+            {
+                radiusLabel.text = XRayLocalization.GetText("graph_radius_label");
+                radiusLabel.tooltip = XRayLocalization.GetText("graph_radius_tt");
+            }
             _directionField.choices = new List<string>
             {
                 XRayLocalization.GetText("graph_dir_both"),
@@ -364,6 +359,12 @@ namespace SceneXRay.Editor.UI
             };
             _directionField.SetValueWithoutNotify(_directionField.choices[Mathf.Clamp((int)CurrentDirection, 0, 2)]);
             _directionField.tooltip = XRayLocalization.GetText("graph_dir_tt");
+            var directionLabel = _toolbar.Q<Label>("xray-direction-label");
+            if (directionLabel != null)
+            {
+                directionLabel.text = XRayLocalization.GetText("graph_direction_label");
+                directionLabel.tooltip = XRayLocalization.GetText("graph_dir_tt");
+            }
             _focusBtn.text = XRayLocalization.GetText("graph_focus_selected");
             _focusBtn.tooltip = XRayLocalization.GetText("graph_focus_selected_tt");
             _showAllBtn.text = XRayLocalization.GetText("graph_show_all");
@@ -389,19 +390,13 @@ namespace SceneXRay.Editor.UI
             return go != null && _nodeByGo.TryGetValue(go, out var node) ? node : null;
         }
 
-        /// <summary>Synthetic node for a referenced asset (ScriptableObject, material, …).</summary>
         public Node FindAssetNode(UnityEngine.Object asset)
         {
             return asset != null && _nodeByAsset.TryGetValue(asset, out var node) ? node : null;
         }
 
-        /// <summary>
-        /// Re-apply Settings-driven colors/line width to every edge and missing-reference node.
-        /// Called live when the user edits SceneXRay settings.
-        /// </summary>
         private void RefreshCustomization()
         {
-            // The edge owns its highlight state, so a plain refresh keeps it.
             foreach (var edge in _allEdges)
                 if (edge is XRayEdge xEdge)
                     xEdge.RefreshVisual();
@@ -426,7 +421,6 @@ namespace SceneXRay.Editor.UI
 
         public void SetContent(List<Node> nodes, List<Edge> edges, int pageSize = 100, bool resetNavigation = true)
         {
-            // Snapshot history before node refs die (Live Mode soft refresh).
             List<FocusState> historySnap = null;
             int historyIndexSnap = 0;
             if (!resetNavigation && _history.Count > 0)
@@ -435,7 +429,7 @@ namespace SceneXRay.Editor.UI
                 historyIndexSnap = _historyIndex;
             }
 
-            _allNodes = nodes;
+            _allNodes = XRayStructuralRank.Sort(nodes, edges, out _ranks);
             _allEdges = edges;
             _visibleNodes = pageSize;
             _currentPage = 0;
@@ -456,9 +450,9 @@ namespace SceneXRay.Editor.UI
 
                 if (xNode.GameObject != null) _nodeByGo[xNode.GameObject] = node;
                 else if (xNode.Asset != null) _nodeByAsset[xNode.Asset] = node;
-                else continue; // "Missing: …" placeholders have no identity to drill into
+                else continue;
 
-                if (!_clickWired.Add(node)) continue; // soft rebuilds reuse node instances
+                if (!_clickWired.Add(node)) continue;
 
                 var captured = xNode;
                 node.RegisterCallback<MouseDownEvent>(evt =>
@@ -500,8 +494,6 @@ namespace SceneXRay.Editor.UI
                     restoreFullPositions: false, forceLayout: true);
             }
 
-            // New content: old positions are meaningless, then re-apply the user's own
-            // arrangement for this scene if there is one.
             ResetPositionHistory();
             if (AutoRestoreLayout && HasSavedLayout)
                 RestoreLayout(silent: true);
@@ -521,8 +513,6 @@ namespace SceneXRay.Editor.UI
                 if (state.CenterAsset != null && _nodeByAsset.ContainsKey(state.CenterAsset))
                     return;
 
-                // Asset instances survive domain reloads, but a rebuilt graph may hold a
-                // different instance for the same file — re-resolve through the GUID.
                 state.CenterAsset = null;
                 if (string.IsNullOrEmpty(state.CenterAssetGuid)) return;
                 foreach (var kv in _nodeByAsset)
@@ -546,14 +536,12 @@ namespace SceneXRay.Editor.UI
                 state.CenterGlobalId == "GlobalObjectId_V1-0-00000000000000000000000000000000-0-0")
                 return;
 
-            foreach (var kv in _nodeByGo)
-            {
-                if (SceneXRay.Editor.Core.DependencyLink.GetGlobalId(kv.Key) == state.CenterGlobalId)
-                {
-                    state.Center = kv.Key;
-                    return;
-                }
-            }
+            if (!GlobalObjectId.TryParse(state.CenterGlobalId, out var gid)) return;
+
+            var resolved = GlobalObjectId.GlobalObjectIdentifierToObjectSlow(gid);
+            var go = resolved as GameObject ?? (resolved as Component)?.gameObject;
+            if (go != null && _nodeByGo.ContainsKey(go))
+                state.Center = go;
         }
 
         private (Node source, Node target) ResolveEdge(Edge edge)
@@ -574,8 +562,6 @@ namespace SceneXRay.Editor.UI
             return _allNodes.Skip(_currentPage * _visibleNodes).Take(_visibleNodes).ToList();
         }
 
-        // ── History / navigation ───────────────────────────────────
-
         private void ResetHistoryToShowAll()
         {
             _history.Clear();
@@ -590,8 +576,8 @@ namespace SceneXRay.Editor.UI
             if (state == null) return;
             state.Page = _currentPage;
             state.HasView = true;
-            state.ViewPosition = viewTransform.position;
-            state.ViewScale = viewTransform.scale;
+            state.ViewPosition = SceneXRayCompat.ReadViewPosition(contentViewContainer);
+            state.ViewScale = SceneXRayCompat.ReadViewScale(contentViewContainer);
         }
 
         private void RestoreView(FocusState state)
@@ -624,7 +610,6 @@ namespace SceneXRay.Editor.UI
             GameObject leavingCenter = _currentState?.Center;
             bool leavingShowAll = _currentState == null || _currentState.IsShowAll;
 
-            // Snapshot full-graph layout before first drill-in so Back can restore it.
             if (leavingShowAll && !state.IsShowAll && _fullGraphLaidOut)
                 SaveFullGraphPositions();
 
@@ -633,8 +618,6 @@ namespace SceneXRay.Editor.UI
                 if (_historyIndex >= 0 && _historyIndex < _history.Count)
                     CaptureViewInto(_history[_historyIndex]);
 
-                // Re-focusing the same object must never stack another crumb — _currentState
-                // can drift from the history top after a soft rebuild, so check both.
                 var top = _historyIndex >= 0 && _historyIndex < _history.Count ? _history[_historyIndex] : null;
                 if (top != null && top.SameFocus(state))
                 {
@@ -660,8 +643,6 @@ namespace SceneXRay.Editor.UI
             }
             else
             {
-                // Follow mode: never overwrite the Show-All root at index 0.
-                // First drill-in pushes; further Follow hops replace the current focus entry.
                 if (_currentState != null && _currentState.SameFocus(state))
                 {
                     ApplyState(state, restoreView: false, preferFrameCenter: null,
@@ -727,8 +708,6 @@ namespace SceneXRay.Editor.UI
             var center = ResolveCenterNode(_currentState);
             if (center == null)
             {
-                // History navigation must never trigger FocusFallback (RefreshGraph) —
-                // that wipes the current graph and resets the stack mid-Back.
                 if (!_suppressFocusFallback && go != null && FocusFallback != null && FocusFallback(go))
                     return;
                 var missing = _currentState.CenterObject;
@@ -889,7 +868,6 @@ namespace SceneXRay.Editor.UI
             UpdateNavButtons();
         }
 
-        /// <summary>Escape / Backspace: step back one level.</summary>
         public void NavigateUp()
         {
             if (CanGoBack) GoBack();
@@ -915,7 +893,6 @@ namespace SceneXRay.Editor.UI
             return _focusSet != null;
         }
 
-        /// <summary>Drill into a referenced asset node (ScriptableObject, material, …).</summary>
         public bool FocusOnAsset(UnityEngine.Object asset, int radius = -1, FocusDirection? direction = null,
             bool recordHistory = true)
         {
@@ -933,7 +910,6 @@ namespace SceneXRay.Editor.UI
             return _focusSet != null;
         }
 
-        /// <summary>Focus whatever a node represents — GameObject or asset.</summary>
         public bool FocusOnNode(XRayNode node)
         {
             if (node == null) return false;
@@ -953,14 +929,11 @@ namespace SceneXRay.Editor.UI
             }, recordHistory: true);
         }
 
-        /// <summary>Legacy alias — prefer <see cref="ShowAll"/> / <see cref="NavigateUp"/>.</summary>
         public void ClearFocus() => ShowAll();
 
-        /// <summary>True when the current focus has a re-focusable center (GameObject or asset).</summary>
         private bool HasFocusCenter =>
             _currentState != null && (_currentState.Center != null || _currentState.CenterAsset != null);
 
-        /// <summary>Re-apply the current focus with a different radius/direction.</summary>
         private bool RefocusCurrent(int radius, FocusDirection direction)
         {
             if (_currentState == null) return false;
@@ -987,7 +960,6 @@ namespace SceneXRay.Editor.UI
             }
             if (_currentState.Radius <= 1)
             {
-                // Collapse out of ego-network = Back (previous view), not dump-all.
                 NavigateUp();
                 return;
             }
@@ -1011,7 +983,6 @@ namespace SceneXRay.Editor.UI
                 return;
             }
 
-            // Project-window selection: a ScriptableObject/asset can be a graph node too.
             var asset = Selection.activeObject;
             if (asset != null && FindAssetNode(asset) != null)
             {
@@ -1051,8 +1022,6 @@ namespace SceneXRay.Editor.UI
             RefocusCurrent(_currentState.Radius, dir);
         }
 
-        // ── Layouts ───────────────────────────────────────────────
-
         private void LayoutDisplayed(bool forcePositions)
         {
             var nodes = DisplayedNodes();
@@ -1065,7 +1034,8 @@ namespace SceneXRay.Editor.UI
             var columns = nodes
                 .GroupBy(n => _nodeDepths[n])
                 .OrderBy(g => g.Key)
-                .Select(g => g.OrderBy(n => n.title, StringComparer.OrdinalIgnoreCase).ToList())
+                .Select(g => g.OrderByDescending(StructuralScore)
+                              .ThenBy(n => n.title, StringComparer.OrdinalIgnoreCase).ToList())
                 .ToList();
 
             var order = new Dictionary<Node, float>();
@@ -1110,6 +1080,12 @@ namespace SceneXRay.Editor.UI
             }
         }
 
+        private float StructuralScore(Node node)
+            => _ranks != null && _ranks.TryGetValue(node, out var r) ? r.Score : 0f;
+
+        private bool IsAssetTier(Node node)
+            => _ranks != null && _ranks.TryGetValue(node, out var r) && r.Tier == XRayStructuralRank.TierAsset;
+
         private void BuildDependencyTree(List<Node> nodes)
         {
             _nodeDepths.Clear();
@@ -1132,7 +1108,14 @@ namespace SceneXRay.Editor.UI
                 _parents[t].Add(s);
             }
 
-            var roots = nodes.Where(n => _parents[n].Count == 0).ToList();
+            var flowNodes = nodes.Where(n => !IsAssetTier(n)).ToList();
+
+            var roots = flowNodes
+                .Where(n => _parents[n].Count(p => !IsAssetTier(p)) == 0)
+                .OrderByDescending(StructuralScore)
+                .ToList();
+            if (roots.Count == 0 && flowNodes.Count > 0)
+                roots.Add(flowNodes.OrderByDescending(StructuralScore).First());
             if (roots.Count == 0 && nodes.Count > 0)
                 roots.Add(nodes[0]);
 
@@ -1151,6 +1134,7 @@ namespace SceneXRay.Editor.UI
                 if (nextDepth >= nodes.Count) continue;
                 foreach (var child in _children[current])
                 {
+                    if (IsAssetTier(child)) continue;
                     if (!_nodeDepths.TryGetValue(child, out var old) || old < nextDepth)
                     {
                         _nodeDepths[child] = nextDepth;
@@ -1159,9 +1143,14 @@ namespace SceneXRay.Editor.UI
                 }
             }
 
-            foreach (var node in nodes)
+            foreach (var node in flowNodes)
                 if (!_nodeDepths.ContainsKey(node))
                     _nodeDepths[node] = 0;
+
+            int sinkDepth = _nodeDepths.Count > 0 ? _nodeDepths.Values.Max() + 1 : 0;
+            foreach (var node in nodes)
+                if (!_nodeDepths.ContainsKey(node))
+                    _nodeDepths[node] = sinkDepth;
         }
 
         public void ApplyHierarchicalLayout()
@@ -1178,8 +1167,6 @@ namespace SceneXRay.Editor.UI
 
         private void ForceLayoutCore()
         {
-            // Hierarchical force: keep Tree columns (readable DAG), spread Y with guaranteed gaps.
-            // Free 2D FR collapses hubs — never use it here.
             var nodes = DisplayedNodes();
             UpdateView();
             if (nodes.Count == 0) return;
@@ -1198,11 +1185,11 @@ namespace SceneXRay.Editor.UI
                 .OrderBy(g => g.Key)
                 .ToList();
 
-            // Barycenter order within column (related nodes sit near each other), then hard-pack Y.
             var order = new Dictionary<Node, float>(nodes.Count);
             foreach (var col in columns)
             {
-                var list = col.OrderBy(n => n.title, StringComparer.OrdinalIgnoreCase).ToList();
+                var list = col.OrderByDescending(StructuralScore)
+                              .ThenBy(n => n.title, StringComparer.OrdinalIgnoreCase).ToList();
                 for (int i = 0; i < list.Count; i++)
                     order[list[i]] = i;
             }
@@ -1233,14 +1220,12 @@ namespace SceneXRay.Editor.UI
             }
         }
 
-        /// <summary>Rings around the focus center (also available from the Layout menu).</summary>
         public void ApplyRadialLayout()
         {
             RadialLayoutCore();
             AfterLayoutCommit();
         }
 
-        /// <summary>Clean context menu — no Cut/Copy/Delete/Disconnect from GraphView.</summary>
         public override void BuildContextualMenu(ContextualMenuPopulateEvent evt)
         {
             evt.menu.ClearItems();
@@ -1340,7 +1325,6 @@ namespace SceneXRay.Editor.UI
                 XRayLocalization.GetText("report_no_missing"));
         }
 
-        /// <summary>Public status line — lets the owning window post messages into the graph's status bar.</summary>
         public void ShowStatus(string message) => ShowMessage(message);
 
         private void AfterLayoutCommit()
@@ -1350,17 +1334,14 @@ namespace SceneXRay.Editor.UI
                 _fullGraphLaidOut = true;
                 SaveFullGraphPositions();
             }
-            CommitPositions(); // an explicit re-layout is undoable
+            CommitPositions();
             ScheduleFrameAll();
         }
 
         private void ScheduleFrameAll()
         {
-            // One frame later: node sizes are only resolved after the next layout pass.
             schedule.Execute(() => FrameGraph()).ExecuteLater(50);
         }
-
-        // ── View maintenance ───────────────────────────────────────
 
         private void UpdateView()
         {
@@ -1471,6 +1452,7 @@ namespace SceneXRay.Editor.UI
             _allEdges.Clear();
             _nodeByGo.Clear();
             _nodeDepths.Clear();
+            _ranks.Clear();
             _children.Clear();
             _parents.Clear();
             _outAdj.Clear();
@@ -1487,11 +1469,8 @@ namespace SceneXRay.Editor.UI
             _pageLabel.text = "1/1";
             UpdateCounts();
             _emptyLabel.style.display = DisplayStyle.Flex;
-            // Do not reset navigation history here — SetContent(resetNavigation) owns that.
-            // Live Mode soft rebuilds must keep Back/Forward working.
         }
 
-        /// <summary>Hard-reset navigation (user pressed Refresh).</summary>
         public void ResetNavigation() => ResetHistoryToShowAll();
 
         public List<Node> GetAllNodes() => _allNodes;

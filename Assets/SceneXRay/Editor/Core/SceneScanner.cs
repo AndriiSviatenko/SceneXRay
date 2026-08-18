@@ -8,10 +8,13 @@ using UnityEngine.Events;
 
 namespace SceneXRay.Editor.Core
 {
-    /// <summary>Scans GameObjects for outgoing dependencies (direct refs, UnityEvents, missing refs, SO assets).</summary>
     public static class SceneScanner
     {
         private static readonly Dictionary<Type, FieldInfo[]> _unityEventFieldsCache = new();
+
+        private static readonly Dictionary<Type, bool> _hasObjectRefProperties = new();
+
+        private static readonly List<Component> _componentBuffer = new();
 
         public static List<DependencyLink> ScanGameObject(GameObject go)
         {
@@ -20,14 +23,13 @@ namespace SceneXRay.Editor.Core
 
             var ignored = SceneXRaySettings.instance.IgnoredComponents;
 
-            foreach (var comp in go.GetComponents<Component>())
+            go.GetComponents(_componentBuffer);
+            foreach (var comp in _componentBuffer)
             {
                 if (comp == null) continue;
                 var compType = comp.GetType();
                 if (ignored != null && ignored.Contains(compType.Name)) continue;
 
-                // Track UnityEvent targets found via reflection so the SerializedObject
-                // iterator does not duplicate them through m_Target properties.
                 var eventTargets = new HashSet<UnityEngine.Object>();
                 ScanUnityEvents(go, comp, compType, links, eventTargets);
                 ScanSerializedProperties(go, comp, compType, links, eventTargets);
@@ -38,22 +40,32 @@ namespace SceneXRay.Editor.Core
         private static void ScanSerializedProperties(GameObject go, Component comp, System.Type compType,
             List<DependencyLink> links, HashSet<UnityEngine.Object> eventTargets)
         {
+            if (_hasObjectRefProperties.TryGetValue(compType, out bool known) && !known) return;
+
+            bool sawObjectRef = false;
+            bool sawManagedRef = false;
+            bool sawVariableShape = false;
+
             using (var so = new SerializedObject(comp))
             {
                 var prop = so.GetIterator();
-                while (prop.NextVisible(true))
+
+                while (prop.Next(true))
                 {
+                    if (prop.propertyType == SerializedPropertyType.ManagedReference)
+                        sawManagedRef = true;
+                    if (prop.isArray && prop.propertyType != SerializedPropertyType.String)
+                        sawVariableShape = true;
                     if (prop.propertyType != SerializedPropertyType.ObjectReference) continue;
 
-                    // Skip UnityEvent internals — already covered by reflection pass.
                     if (prop.propertyPath.Contains("m_PersistentCalls")) continue;
 
-                    // Every MonoBehaviour points at its own MonoScript — pure noise here,
-                    // the component name is already on the link.
                     if (prop.propertyPath == "m_Script") continue;
 
+                    sawObjectRef = true;
+
                     var value = prop.objectReferenceValue;
-                    if (value == null && prop.objectReferenceInstanceIDValue != 0)
+                    if (SceneXRayCompat.IsBrokenReference(prop))
                     {
                         links.Add(new DependencyLink
                         {
@@ -64,11 +76,10 @@ namespace SceneXRay.Editor.Core
                             LinkType = LinkType.Missing
                         });
                     }
-                    // Components and GameObjects are object links, never asset links — even inside
-                    // a prefab asset, where every object would otherwise look "persistent".
+
                     else if (value is Component targetComp)
                     {
-                        if (targetComp.gameObject == go) continue; // self-reference
+                        if (targetComp.gameObject == go) continue;
                         if (eventTargets.Contains(value)) continue;
                         links.Add(new DependencyLink
                         {
@@ -81,7 +92,7 @@ namespace SceneXRay.Editor.Core
                     }
                     else if (value is GameObject targetGo)
                     {
-                        if (targetGo == go) continue; // self-reference
+                        if (targetGo == go) continue;
                         if (eventTargets.Contains(value)) continue;
                         links.Add(new DependencyLink
                         {
@@ -92,9 +103,7 @@ namespace SceneXRay.Editor.Core
                             LinkType = LinkType.Direct
                         });
                     }
-                    // Any other referenced asset: material, mesh, texture, clip, ScriptableObject…
-                    // (GameObject/Component references were handled above, so prefab links keep
-                    // pointing at the prefab's own node instead of turning into asset cards.)
+
                     else if (value is ScriptableObject || (value != null && EditorUtility.IsPersistent(value)))
                     {
                         if (!IncludeAsset(value)) continue;
@@ -110,17 +119,23 @@ namespace SceneXRay.Editor.Core
                     }
                 }
             }
+
+            if (!sawManagedRef && !sawVariableShape)
+                _hasObjectRefProperties[compType] = sawObjectRef;
         }
 
-        /// <summary>Settings gate for asset links + the built-in resource filter.</summary>
+        public static void ClearTypeCaches()
+        {
+            _hasObjectRefProperties.Clear();
+            _unityEventFieldsCache.Clear();
+        }
+
         private static bool IncludeAsset(UnityEngine.Object asset)
         {
             var settings = SceneXRaySettings.instance;
             if (!settings.ScanAssetReferences) return false;
             if (settings.IncludeBuiltInAssets) return true;
 
-            // Built-ins live outside Assets/ and Packages/ (Resources/unity_builtin_extra,
-            // Library/unity default resources). In-memory objects have no path — keep those.
             string path = AssetDatabase.GetAssetPath(asset);
             if (string.IsNullOrEmpty(path)) return true;
             return path.StartsWith("Assets/") || path.StartsWith("Packages/");
@@ -197,13 +212,30 @@ namespace SceneXRay.Editor.Core
             }
         }
 
-        /// <summary>Scans every GameObject in the currently loaded scenes.</summary>
         public static List<DependencyLink> ScanAllGameObjects()
         {
+            var stageLinks = PrefabScanner.ScanOpenPrefabStage();
+            if (stageLinks != null) return stageLinks;
+
             var allLinks = new List<DependencyLink>();
-            foreach (var go in UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            foreach (var go in SceneXRayCompat.FindAll<GameObject>())
                 allLinks.AddRange(ScanGameObject(go));
             return allLinks;
+        }
+
+        public static List<GameObject> CollectScannableObjects()
+        {
+            var stage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
+            if (stage != null)
+            {
+                var result = new List<GameObject>();
+                if (stage.prefabContentsRoot != null)
+                    foreach (var t in stage.prefabContentsRoot.GetComponentsInChildren<Transform>(true))
+                        result.Add(t.gameObject);
+                return result;
+            }
+
+            return new List<GameObject>(SceneXRayCompat.FindAll<GameObject>());
         }
 
         public static List<DependencyLink> ScanSelectedGameObjects()
@@ -214,33 +246,45 @@ namespace SceneXRay.Editor.Core
             return links;
         }
 
-        /// <summary>
-        /// Scans every scene from the build settings. Opens scenes additively — heavyweight,
-        /// intended only for explicit user-triggered full-project analysis (e.g. global search, CLI).
-        /// </summary>
-        public static List<DependencyLink> ScanAllScenes()
+        public static List<DependencyLink> ScanAllScenes(bool enabledOnly = false)
         {
             var allLinks = new List<DependencyLink>();
-            var scenePaths = EditorBuildSettings.scenes.Select(s => s.path).Where(s => !string.IsNullOrEmpty(s)).ToList();
-            for (int i = 0; i < scenePaths.Count; i++)
+            var scenePaths = EditorBuildSettings.scenes
+                .Where(s => !string.IsNullOrEmpty(s.path) && (!enabledOnly || s.enabled))
+                .Select(s => s.path)
+                .ToList();
+            try
             {
-                var path = scenePaths[i];
-                EditorUtility.DisplayProgressBar("SceneXRay", $"Scanning scene {path}", (float)i / scenePaths.Count);
-                var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(path, UnityEditor.SceneManagement.OpenSceneMode.Additive);
-                try
+                for (int i = 0; i < scenePaths.Count; i++)
                 {
-                    foreach (var root in scene.GetRootGameObjects())
+                    var path = scenePaths[i];
+                    EditorUtility.DisplayProgressBar("SceneXRay", $"Scanning scene {path}", (float)i / scenePaths.Count);
+
+                    var existing = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(path);
+                    bool alreadyOpen = existing.IsValid() && existing.isLoaded;
+                    var scene = alreadyOpen
+                        ? existing
+                        : UnityEditor.SceneManagement.EditorSceneManager.OpenScene(
+                            path, UnityEditor.SceneManagement.OpenSceneMode.Additive);
+                    try
                     {
-                        foreach (var child in root.GetComponentsInChildren<Transform>(true))
-                            allLinks.AddRange(ScanGameObject(child.gameObject));
+                        foreach (var root in scene.GetRootGameObjects())
+                        {
+                            foreach (var child in root.GetComponentsInChildren<Transform>(true))
+                                allLinks.AddRange(ScanGameObject(child.gameObject));
+                        }
+                    }
+                    finally
+                    {
+                        if (!alreadyOpen)
+                            UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
                     }
                 }
-                finally
-                {
-                    UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true);
-                }
             }
-            EditorUtility.ClearProgressBar();
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
             return allLinks;
         }
     }

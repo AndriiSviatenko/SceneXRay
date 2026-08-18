@@ -1,0 +1,8 @@
+THIRD-PARTY NOTICES
+
+SceneXRay 1.0.0 contains no third-party software, source code, binaries, fonts, audio,
+images, web services, or other externally licensed content.
+
+The demo scene uses Unity built-in primitive meshes and a Unity built-in shader. These are
+references to functionality supplied by the Unity Editor and are not redistributed third-party
+content.

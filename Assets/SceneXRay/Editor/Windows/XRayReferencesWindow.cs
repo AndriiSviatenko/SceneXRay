@@ -8,10 +8,6 @@ using SceneXRay.Editor.Core;
 
 namespace SceneXRay.Editor.Windows
 {
-    /// <summary>
-    /// Dedicated references browser — same visual language as the inspector strip,
-    /// with scroll room for long lists and a pinned target.
-    /// </summary>
     public class XRayReferencesWindow : EditorWindow
     {
         private const float SidePad = 14f;
@@ -34,24 +30,32 @@ namespace SceneXRay.Editor.Windows
         public static void ShowFor(GameObject go)
         {
             var window = GetWindow<XRayReferencesWindow>();
-            window.titleContent = new GUIContent("XRay References");
+            window.titleContent = new GUIContent(XRayLocalization.GetText("references_window_title"));
             window.minSize = new Vector2(420, 280);
             window.SetTarget(go);
             window.Show();
         }
 
-        /// <summary>Opens an empty browser (pick target via ObjectField / Use Selection).</summary>
         public static void ShowEmpty() => ShowFor(null);
 
         private void OnEnable()
         {
             wantsMouseMove = true;
             XRayReferenceIndex.IndexUpdated += OnIndexUpdated;
+            XRayLocalization.LanguageChanged += OnLanguageChanged;
+            titleContent = new GUIContent(XRayLocalization.GetText("references_window_title"));
         }
 
         private void OnDisable()
         {
             XRayReferenceIndex.IndexUpdated -= OnIndexUpdated;
+            XRayLocalization.LanguageChanged -= OnLanguageChanged;
+        }
+
+        private void OnLanguageChanged()
+        {
+            titleContent = new GUIContent(XRayLocalization.GetText("references_window_title"));
+            Repaint();
         }
 
         private void OnIndexUpdated()
@@ -77,6 +81,17 @@ namespace SceneXRay.Editor.Windows
 
             if (!XRayReferenceIndex.IsReady)
                 XRayReferenceIndex.RebuildImmediate();
+
+            if (EditorUtility.IsPersistent(go) && PrefabUtility.IsPartOfPrefabAsset(go))
+            {
+                _outgoing = PrefabScanner.ScanPrefab(go);
+
+                _incoming = XRayReferenceIndex.GetIncoming(go)
+                    .Concat(XRayReferenceIndex.GetIncomingForAsset(go))
+                    .ToList();
+                Repaint();
+                return;
+            }
 
             _outgoing = XRayReferenceIndex.GetOutgoing(go).ToList();
             if (_outgoing.Count == 0)
@@ -109,9 +124,9 @@ namespace SceneXRay.Editor.Windows
                 using (new EditorGUILayout.VerticalScope())
                 {
                     GUILayout.Space(8);
-                    DrawSection("References", _outgoing, false, ref _outOpen);
+                    DrawSection(XRayLocalization.GetText("references"), _outgoing, false, ref _outOpen);
                     GUILayout.Space(10);
-                    DrawSection("Referenced By", _incoming, true, ref _inOpen);
+                    DrawSection(XRayLocalization.GetText("referenced_by"), _incoming, true, ref _inOpen);
                     GUILayout.Space(12);
                 }
                 GUILayout.Space(SidePad);
@@ -127,11 +142,11 @@ namespace SceneXRay.Editor.Windows
                 var picked = (GameObject)EditorGUILayout.ObjectField(_target, typeof(GameObject), true);
                 if (picked != _target) SetTarget(picked);
 
-                if (GUILayout.Button("Use Selection", EditorStyles.toolbarButton, GUILayout.Width(92)))
+                if (GUILayout.Button(XRayLocalization.GetText("use_selection"), EditorStyles.toolbarButton, GUILayout.Width(108)))
                     SetTarget(Selection.activeGameObject);
-                if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(60)))
+                if (GUILayout.Button(XRayLocalization.GetText("refresh"), EditorStyles.toolbarButton, GUILayout.Width(70)))
                     SetTarget(_target);
-                if (GUILayout.Button("Open Graph", EditorStyles.toolbarButton, GUILayout.Width(82)) && _target != null)
+                if (GUILayout.Button(XRayLocalization.GetText("open_graph"), EditorStyles.toolbarButton, GUILayout.Width(92)) && _target != null)
                     XRayWindow.ShowWindowFocused(_target);
                 GUILayout.Space(4);
             }
@@ -145,7 +160,7 @@ namespace SceneXRay.Editor.Windows
                 var bg = EditorGUIUtility.isProSkin
                     ? new Color(0.16f, 0.165f, 0.20f, 1f)
                     : new Color(0.92f, 0.92f, 0.94f, 1f);
-                // Inset fill — no edge bleed
+
                 var inset = new Rect(bar.x + SidePad, bar.y + 4, bar.width - SidePad * 2, bar.height - 8);
                 EditorGUI.DrawRect(inset, bg);
                 EditorGUI.DrawRect(new Rect(inset.x, inset.y, 3f, inset.height), ColDirect);
@@ -164,8 +179,10 @@ namespace SceneXRay.Editor.Windows
             GUI.Label(new Rect(x, y, 220f, h), _target.name, Styles.HeroName);
 
             int missing = _outgoing.Count(l => l.IsMissing);
-            string summary = $"{_outgoing.Count} out  ·  {_incoming.Count} in"
-                             + (missing > 0 ? $"  ·  {missing} missing" : "");
+            string summary = XRayLocalization.Format("reference_summary", _outgoing.Count, _incoming.Count)
+                             + (missing > 0
+                                 ? XRayLocalization.Format("reference_missing_suffix", missing)
+                                 : "");
             Vector2 sumSize = Styles.Muted.CalcSize(new GUIContent(summary));
             GUI.Label(new Rect(bar.xMax - SidePad - sumSize.x - 4f, y, sumSize.x, h), summary, Styles.Muted);
         }
@@ -178,9 +195,9 @@ namespace SceneXRay.Editor.Windows
                 GUILayout.FlexibleSpace();
                 using (new EditorGUILayout.VerticalScope())
                 {
-                    GUILayout.Label("No object selected", Styles.HeroName);
+                    GUILayout.Label(XRayLocalization.GetText("no_object_selected"), Styles.HeroName);
                     GUILayout.Space(4);
-                    GUILayout.Label("Pick a GameObject above, or use Hierarchy\n→ SceneXRay → View References.", Styles.Muted);
+                    GUILayout.Label(XRayLocalization.GetText("pick_object_hint"), Styles.Muted);
                 }
                 GUILayout.FlexibleSpace();
             }
@@ -191,7 +208,7 @@ namespace SceneXRay.Editor.Windows
         {
             using (new EditorGUILayout.HorizontalScope(GUILayout.Height(20)))
             {
-                var tip = open ? "Click to collapse" : "Click to expand";
+                var tip = XRayLocalization.GetText(open ? "collapse" : "expand");
                 if (GUILayout.Button(new GUIContent(title, tip), open ? Styles.HeaderOpen : Styles.HeaderClosed, GUILayout.ExpandWidth(false)))
                     open = !open;
 
@@ -214,7 +231,7 @@ namespace SceneXRay.Editor.Windows
                         : new Color(0.94f, 0.94f, 0.96f, 1f);
                     EditorGUI.DrawRect(empty, fill);
                 }
-                GUI.Label(new Rect(empty.x + 12, empty.y, empty.width - 12, empty.height), "None", Styles.Muted);
+                GUI.Label(new Rect(empty.x + 12, empty.y, empty.width - 12, empty.height), XRayLocalization.GetText("none"), Styles.Muted);
                 return;
             }
 
@@ -279,7 +296,7 @@ namespace SceneXRay.Editor.Windows
                 Rect chipArea = new Rect(arrow.xMax + 2f, chipY, padR - arrow.xMax - 2f, chipH);
 
                 if (link.IsMissing)
-                    GUI.Label(chipArea, "Missing", Styles.Missing);
+                    GUI.Label(chipArea, XRayLocalization.GetText("missing"), Styles.Missing);
                 else if (link.TargetAsset != null)
                     DrawAssetChip(chipArea, link.TargetAsset, accent);
                 else

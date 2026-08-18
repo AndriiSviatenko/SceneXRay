@@ -1,11 +1,30 @@
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace SceneXRay.Editor.Core
 {
     public static class PrefabScanner
     {
+        public static bool IsPrefabStageOpen => PrefabStageUtility.GetCurrentPrefabStage() != null;
+
+        public static string CurrentPrefabStagePath => PrefabStageUtility.GetCurrentPrefabStage()?.assetPath;
+
+        public static List<DependencyLink> ScanOpenPrefabStage()
+        {
+            var stage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (stage == null) return null;
+
+            var links = new List<DependencyLink>();
+            var root = stage.prefabContentsRoot;
+            if (root == null) return links;
+
+            foreach (var t in root.GetComponentsInChildren<Transform>(true))
+                links.AddRange(SceneScanner.ScanGameObject(t.gameObject));
+            return links;
+        }
+
         public static List<DependencyLink> ScanPrefab(GameObject prefabInstance)
         {
             var prefabRoot = PrefabUtility.GetCorrespondingObjectFromSource(prefabInstance);
@@ -18,16 +37,30 @@ namespace SceneXRay.Editor.Core
             return links;
         }
 
-        /// <summary>
-        /// Scans unique prefab assets that have instances in currently loaded scenes.
-        /// Prefer this over <see cref="ScanAllPrefabs"/> for interactive graph use.
-        /// </summary>
         public static List<DependencyLink> ScanPrefabAssetsUsedInLoadedScenes()
+            => ScanPrefabAssetsUsedInLoadedScenes(new HashSet<ulong>());
+
+        public static List<DependencyLink> ScanPrefabAssetsUsedInLoadedScenes(HashSet<ulong> scannedAssetIds)
         {
             var links = new List<DependencyLink>();
-            var scannedAssetIds = new HashSet<int>();
 
-            foreach (var go in Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            var stage = PrefabStageUtility.GetCurrentPrefabStage();
+            if (stage != null && stage.prefabContentsRoot != null)
+            {
+                foreach (var t in stage.prefabContentsRoot.GetComponentsInChildren<Transform>(true))
+                {
+                    var go = t.gameObject;
+                    if (!PrefabUtility.IsPartOfPrefabInstance(go)) continue;
+                    var nested = PrefabUtility.GetCorrespondingObjectFromSource(
+                        PrefabUtility.GetNearestPrefabInstanceRoot(go));
+                    if (nested == null) continue;
+                    if (!scannedAssetIds.Add(SceneXRayCompat.IdOf(nested))) continue;
+                    links.AddRange(ScanPrefab(nested));
+                }
+                return links;
+            }
+
+            foreach (var go in SceneXRayCompat.FindAll<GameObject>())
             {
                 if (!PrefabUtility.IsPartOfPrefabInstance(go)) continue;
                 var root = PrefabUtility.GetNearestPrefabInstanceRoot(go);
@@ -36,7 +69,7 @@ namespace SceneXRay.Editor.Core
                 var source = PrefabUtility.GetCorrespondingObjectFromSource(root);
                 if (source == null) continue;
 
-                int id = source.GetInstanceID();
+                ulong id = SceneXRayCompat.IdOf(source);
                 if (!scannedAssetIds.Add(id)) continue;
 
                 links.AddRange(ScanPrefab(source));
@@ -45,7 +78,28 @@ namespace SceneXRay.Editor.Core
             return links;
         }
 
-        /// <summary>Full-project prefab scan — heavyweight; use only for explicit CLI / export.</summary>
+        public static List<DependencyLink> ScanReferencedPrefabAssets(
+            IEnumerable<DependencyLink> links, HashSet<ulong> scannedAssetIds)
+        {
+            var result = new List<DependencyLink>();
+            if (links == null) return result;
+
+            foreach (var link in links)
+            {
+                var candidate = link.Target != null ? link.Target : link.TargetAsset as GameObject;
+                if (candidate == null) continue;
+                if (!EditorUtility.IsPersistent(candidate)) continue;
+                if (!PrefabUtility.IsPartOfPrefabAsset(candidate)) continue;
+
+                var root = candidate.transform.root.gameObject;
+                if (!scannedAssetIds.Add(SceneXRayCompat.IdOf(root))) continue;
+
+                result.AddRange(ScanPrefab(root));
+            }
+
+            return result;
+        }
+
         public static Dictionary<string, List<DependencyLink>> ScanAllPrefabs()
         {
             var result = new Dictionary<string, List<DependencyLink>>();

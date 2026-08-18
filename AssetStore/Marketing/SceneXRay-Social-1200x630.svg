@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#151f2d"/><stop offset="1" stop-color="#070a10"/></linearGradient>
+    <linearGradient id="scan" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#61d6ff"/><stop offset="1" stop-color="#a06af7"/></linearGradient>
+    <radialGradient id="iris"><stop stop-color="#efffff"/><stop offset=".2" stop-color="#6ee0ff"/><stop offset=".68" stop-color="#5d7bf5"/><stop offset="1" stop-color="#9f5cf5"/></radialGradient>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse"><path d="M42 0H0V42" fill="none" stroke="#9bb0c6" stroke-opacity=".08"/></pattern>
+    <filter id="glow"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/><rect width="1200" height="630" fill="url(#grid)"/>
+  <g fill="none" stroke="#7e9db8" stroke-width="4" opacity=".72"><path d="M93 122 315 232M71 483l244-95M1107 115 886 232M1129 490 886 390"/><path d="M315 232 438 274M315 388l123-43M886 232 762 274M886 390 762 345" stroke="#67d7ff"/></g>
+  <g fill="#0b111a" stroke-width="6"><circle cx="93" cy="122" r="15" stroke="#ffbd57"/><circle cx="71" cy="483" r="15" stroke="#a06af7"/><circle cx="1107" cy="115" r="15" stroke="#61d6ff"/><circle cx="1129" cy="490" r="15" stroke="#4fd39a"/></g>
+  <path d="M333 315c81-135 176-184 267-184s186 49 267 184C786 450 691 499 600 499S414 450 333 315Z" fill="#142130" stroke="url(#scan)" stroke-width="12" filter="url(#glow)"/>
+  <circle cx="600" cy="315" r="112" fill="url(#iris)"/><circle cx="600" cy="315" r="44" fill="#07101a"/><circle cx="570" cy="281" r="18" fill="#fff" opacity=".9"/>
+</svg>

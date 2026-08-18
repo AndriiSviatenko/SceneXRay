@@ -9,8 +9,6 @@ using System.Linq;
 
 namespace SceneXRay.Editor.UI
 {
-    /// <summary>Toolbar widget showing the scene health score. Consumes pre-collected links (no scanning).</summary>
-    // Report accents mirror the graph's link colours so the two read as one tool.
     public class XRayHealthScoreUI : VisualElement
     {
         private readonly Label _scoreLabel;
@@ -19,14 +17,12 @@ namespace SceneXRay.Editor.UI
         private List<DependencyLink> _links = new();
         private HealthReport _lastReport;
 
-        /// <summary>Raised when the user clicks a god-object name in the details dialog.</summary>
         public System.Action<GameObject> FocusRequested;
 
         public XRayHealthScoreUI()
         {
-            // Styling lives in XRayStyles.uss (.xray-health*) so it follows the editor skin.
             AddToClassList("xray-health");
-            tooltip = "Click for missing refs, cycles, and god objects";
+            tooltip = XRayLocalization.GetText("health_tooltip");
 
             _scoreLabel = new Label(XRayLocalization.GetText("health_score") + ": ");
             _scoreLabel.AddToClassList("xray-health__score");
@@ -47,11 +43,11 @@ namespace SceneXRay.Editor.UI
 
         private void OnLanguageChanged()
         {
+            tooltip = XRayLocalization.GetText("health_tooltip");
             if (_links != null)
                 Refresh(_links);
         }
 
-        /// <summary>Updates the widget from already collected links instead of re-scanning the scene.</summary>
         public void Refresh(List<DependencyLink> links)
         {
             _links = links ?? new List<DependencyLink>();
@@ -62,8 +58,6 @@ namespace SceneXRay.Editor.UI
             _progressBar.value = score;
             _progressBar.title = $"{score:F1}%";
 
-            // Grade drives the colour from USS instead of an inline tint, so the bar keeps
-            // its rounded chrome and follows the light/dark skin.
             EnableInClassList("is-good", score > 80f);
             EnableInClassList("is-warn", score > 50f && score <= 80f);
             EnableInClassList("is-bad", score <= 50f);
@@ -89,10 +83,6 @@ namespace SceneXRay.Editor.UI
             var summary = new StringBuilder();
             summary.Append($"Health {report.Score:F1}%  ·  missing {report.Missing}  ·  ")
                    .Append($"cycles {report.CycleCount}  ·  avg {report.AvgDeps:F1} deps/object");
-
-            var pattern = PatternDetector.DetectPattern(_links);
-            if (pattern != PatternDetector.ArchitecturePattern.None)
-                summary.Append($"  ·  architecture hint: {pattern}");
 
             var missingRows = _links
                 .Where(l => l.IsMissing)
@@ -145,11 +135,9 @@ namespace SceneXRay.Editor.UI
                     }
                 });
 
-            // Keep the drill-in affordance the old dialog had.
             var firstGod = report.GodObjects.FirstOrDefault(g => g != null);
             if (firstGod != null)
                 FocusRequested?.Invoke(firstGod);
         }
-
     }
 }

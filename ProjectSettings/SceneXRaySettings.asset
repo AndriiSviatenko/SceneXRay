@@ -26,5 +26,5 @@ MonoBehaviour:
   - RectTransform
   ScanAssetReferences: 1
   IncludeBuiltInAssets: 0
-  EnableBuildGuard: 1
+  EnableBuildGuard: 0
   FailBuildOnMissingReferences: 0

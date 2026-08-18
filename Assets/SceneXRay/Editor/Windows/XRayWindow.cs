@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using SceneXRay.Editor.UI;
 using SceneXRay.Editor.Exporters;
 using UnityEditor;
@@ -10,32 +10,28 @@ using UnityEditor.UIElements;
 
 namespace SceneXRay.Editor.Windows
 {
-    /// <summary>Main dependency graph window.</summary>
     public class XRayWindow : EditorWindow
     {
-        private const string StyleSheetPath = "Assets/SceneXRay/Editor/Styles/XRayStyles.uss";
         private const string MiniMapPref = "SceneXRay_MiniMap";
 
         private XRayVirtualGraphView _graphView;
         private List<DependencyLink> _allLinks = new List<DependencyLink>();
 
-        /// <summary>Active graph view — used by shortcuts and smoke tests.</summary>
         public XRayVirtualGraphView GraphView => _graphView;
 
-        /// <summary>Test/helper: force Follow off so Selection noise cannot rewrite history.</summary>
         public void SetFollowEnabled(bool enabled)
         {
             _followToggle?.SetValueWithoutNotify(enabled);
         }
 
-        /// <summary>Test/helper: force Live Mode off so scene churn cannot rebuild mid-test.</summary>
         public void SetLiveModeEnabled(bool enabled)
         {
             LiveModeManager.Enabled = enabled;
             _liveToggle?.SetValueWithoutNotify(enabled);
         }
 
-        private bool _ignoreFollow;
+        private GameObject _pinnedPrefabAsset;
+
         private TextField _searchField;
         private DropdownField _componentFilter, _linkTypeFilter;
         private IntegerField _depthFilter;
@@ -46,12 +42,9 @@ namespace SceneXRay.Editor.Windows
         private bool _liveRefreshPending;
         private bool _settingsRefreshQueued;
         private string _scanFingerprint;
-        private Button _refreshBtn, _exportBtn, _moreBtn, _settingsBtn, _searchBtn;
+        private Button _refreshBtn, _exportBtn, _moreBtn;
         private Label _searchPlaceholder;
 
-        // %#&x = Ctrl+Shift+Alt+X, matching the bookmark chords (…+J / …+K). Plain Ctrl+Shift+X is
-        // claimed by something in the editor and silently never fires, so this family is used
-        // instead. Rebindable under Edit > Shortcuts > Main Menu > Tools/SceneXRay/Open Graph View.
         [MenuItem("Tools/SceneXRay/Open Graph View %#&x", false, 0)]
         public static void ShowWindow()
         {
@@ -60,23 +53,34 @@ namespace SceneXRay.Editor.Windows
             window.Focus();
         }
 
-        /// <summary>Opens the window and focuses the graph on a single GameObject.</summary>
         public static void ShowWindowFocused(GameObject go)
         {
             var window = GetWindow<XRayWindow>();
             window.Show();
-            // A prefab *asset* only has nodes when prefab scanning is on — turn it on for the user
-            // instead of landing them on an empty "not in the graph" message.
-            if (go != null && EditorUtility.IsPersistent(go))
+
+            if (go != null && EditorUtility.IsPersistent(go) && PrefabUtility.IsPartOfPrefabAsset(go))
+            {
+                window._pinnedPrefabAsset = go.transform.root.gameObject;
                 window._prefabToggle?.SetValueWithoutNotify(true);
+            }
+            else
+            {
+                window._pinnedPrefabAsset = null;
+            }
             window.RefreshGraph();
             window._graphView.FocusOn(go);
         }
 
-        /// <summary>Opens the window and focuses the graph on an asset (ScriptableObject, material, …).</summary>
         public static void ShowWindowFocusedAsset(Object asset)
         {
             if (asset == null) return;
+
+            if (asset is GameObject prefab && PrefabUtility.IsPartOfPrefabAsset(prefab))
+            {
+                ShowWindowFocused(prefab);
+                return;
+            }
+
             var window = GetWindow<XRayWindow>();
             window.Show();
             window.RefreshGraph();
@@ -86,16 +90,17 @@ namespace SceneXRay.Editor.Windows
 
         private void OnEnable()
         {
-            titleContent = new GUIContent("SceneXRay Graph");
+            titleContent = new GUIContent(XRayLocalization.GetText("graph_window_title"));
             minSize = new Vector2(800, 600);
 
             var root = rootVisualElement;
+            root.Clear();
 
-            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(StyleSheetPath);
+            var styleSheet = SceneXRayCompat.LoadStyleSheet();
             if (styleSheet != null)
                 root.styleSheets.Add(styleSheet);
             else
-                Debug.LogWarning($"SceneXRay: Style sheet not found at {StyleSheetPath}.");
+                Debug.LogWarning("SceneXRay: shared style sheet could not be resolved by GUID.");
 
             root.EnableInClassList("xray-dark", EditorGUIUtility.isProSkin);
             root.EnableInClassList("xray-light", !EditorGUIUtility.isProSkin);
@@ -103,6 +108,7 @@ namespace SceneXRay.Editor.Windows
             var toolbar = new Toolbar();
             toolbar.AddToClassList("xray-window-toolbar");
             _refreshBtn = new Button(RefreshGraph);
+            _refreshBtn.AddToClassList("xray-toolbar-btn");
             toolbar.Add(_refreshBtn);
 
             _searchField = new TextField();
@@ -162,13 +168,11 @@ namespace SceneXRay.Editor.Windows
             toolbar.Add(_miniMapToggle);
 
             _exportBtn = new Button(() => XRayExporter.ShowExportMenu(_allLinks));
+            _exportBtn.AddToClassList("xray-toolbar-btn");
             toolbar.Add(_exportBtn);
             _moreBtn = new Button(ShowMoreMenu);
+            _moreBtn.AddToClassList("xray-toolbar-btn");
             toolbar.Add(_moreBtn);
-            _settingsBtn = new Button(() => SettingsService.OpenProjectSettings("Project/SceneXRay")) { text = "⚙" };
-            toolbar.Add(_settingsBtn);
-            _searchBtn = new Button(() => XRayGlobalSearchWindow.ShowWindow()) { text = "🔍" };
-            toolbar.Add(_searchBtn);
 
             root.Add(toolbar);
 
@@ -203,7 +207,18 @@ namespace SceneXRay.Editor.Windows
             XRayLocalization.LanguageChanged += ApplyLocalizedTexts;
             SceneXRaySettings.SettingsChanged += OnSettingsChanged;
 
+            UnityEditor.SceneManagement.PrefabStage.prefabStageOpened += OnPrefabStageChanged;
+            UnityEditor.SceneManagement.PrefabStage.prefabStageClosing += OnPrefabStageChanged;
+
             RefreshGraph();
+        }
+
+        private void OnPrefabStageChanged(UnityEditor.SceneManagement.PrefabStage stage)
+        {
+            EditorApplication.delayCall += () =>
+            {
+                if (this != null) RefreshGraph();
+            };
         }
 
         private void OnDisable()
@@ -213,12 +228,15 @@ namespace SceneXRay.Editor.Windows
             Selection.selectionChanged -= OnSelectionChangedFollow;
             XRayLocalization.LanguageChanged -= ApplyLocalizedTexts;
             SceneXRaySettings.SettingsChanged -= OnSettingsChanged;
+            UnityEditor.SceneManagement.PrefabStage.prefabStageOpened -= OnPrefabStageChanged;
+            UnityEditor.SceneManagement.PrefabStage.prefabStageClosing -= OnPrefabStageChanged;
         }
 
         private void ApplyLocalizedTexts()
         {
             if (_refreshBtn == null) return;
 
+            titleContent = new GUIContent(XRayLocalization.GetText("graph_window_title"));
             _refreshBtn.text = XRayLocalization.GetText("refresh");
             _refreshBtn.tooltip = XRayLocalization.GetText("tt_refresh");
             _searchField.tooltip = XRayLocalization.GetText("tt_search");
@@ -240,7 +258,8 @@ namespace SceneXRay.Editor.Windows
                 XRayLocalization.GetText("direct"),
                 XRayLocalization.GetText("unityevent"),
                 XRayLocalization.GetText("missing"),
-                XRayLocalization.GetText("asset")
+                XRayLocalization.GetText("asset"),
+                XRayLocalization.GetText("implicit")
             };
             _linkTypeFilter.index = Mathf.Clamp(linkIdx, 0, _linkTypeFilter.choices.Count - 1);
             _linkTypeFilter.tooltip = XRayLocalization.GetText("tt_link_type");
@@ -256,18 +275,10 @@ namespace SceneXRay.Editor.Windows
             _exportBtn.text = XRayLocalization.GetText("export");
             _moreBtn.text = XRayLocalization.GetText("more");
             _moreBtn.tooltip = XRayLocalization.GetText("tt_more");
-            _settingsBtn.tooltip = XRayLocalization.GetText("settings");
-            _searchBtn.tooltip = XRayLocalization.GetText("tt_global_search");
-
             _healthWidget?.Refresh(_allLinks);
             ApplyFilters();
         }
 
-        /// <summary>
-        /// Scanning settings (asset refs, ignored components, page size) change what the graph
-        /// contains, so they need a rescan — colors alone are handled inside the graph view.
-        /// Debounced through delayCall: the settings UI saves on every keystroke/drag.
-        /// </summary>
         private void OnSettingsChanged()
         {
             if (_settingsRefreshQueued) return;
@@ -285,19 +296,17 @@ namespace SceneXRay.Editor.Windows
                 }
                 _scanFingerprint = current;
 
-                // Both caches hold links produced under the previous settings — the graph would
-                // otherwise rebuild from stale data and look like the setting did nothing.
                 XRayCacheManager.ClearCache();
                 XRayReferenceIndex.RebuildImmediate();
                 RefreshGraph(resetNavigation: false);
             };
         }
 
-        /// <summary>Everything that changes what the scanner produces or how much of it is shown.</summary>
         private string ScanFingerprint()
         {
             var s = SceneXRaySettings.instance;
             return $"{s.ScanAssetReferences}|{s.IncludeBuiltInAssets}|{s.MaxNodesInGraph}|" +
+                   $"{s.ScanImplicitDependencies}|{s.MaxImplicitTargetsPerLookup}|{s.ShowScriptNodes}|" +
                    string.Join(",", s.IgnoredComponents);
         }
 
@@ -320,7 +329,6 @@ namespace SceneXRay.Editor.Windows
 
         private void RefreshGraphPreferIndex()
         {
-            // Live updates must never hard-reset Back/Forward history.
             if (_selectedOnlyToggle != null && _selectedOnlyToggle.value)
             {
                 RefreshGraph(resetNavigation: false);
@@ -342,7 +350,7 @@ namespace SceneXRay.Editor.Windows
 
             string scenePath = UnityEngine.SceneManagement.SceneManager.GetActiveScene().path;
             if (_useCacheToggle != null && _useCacheToggle.value && !string.IsNullOrEmpty(scenePath))
-                XRayCacheManager.Save(scenePath, _allLinks);
+                XRayCacheManager.Save(scenePath, SceneDataOnly(_allLinks));
 
             BuildGraph(resetNavigation: false);
             ApplyFilters();
@@ -355,20 +363,21 @@ namespace SceneXRay.Editor.Windows
             menu.AddItem(new GUIContent(XRayLocalization.GetText("fix_missing")), false, XRayFixMissingWindow.ShowWindow);
             menu.AddItem(new GUIContent(XRayLocalization.GetText("global_search")), false, XRayGlobalSearchWindow.ShowWindow);
             menu.AddItem(new GUIContent(XRayLocalization.GetText("bookmarks")), false, XRayBookmarkWindow.ShowWindow);
+            menu.AddItem(new GUIContent(XRayLocalization.GetText("settings")), false,
+                () => SettingsService.OpenProjectSettings("Project/SceneXRay"));
             menu.AddSeparator("");
-            menu.AddItem(new GUIContent("Advanced/" + XRayLocalization.GetText("clear_cache")), false, () =>
+            string advanced = XRayLocalization.GetText("advanced") + "/";
+            menu.AddItem(new GUIContent(advanced + XRayLocalization.GetText("clear_cache")), false, () =>
             {
                 XRayCacheManager.ClearCache();
                 RefreshGraph();
             });
-            menu.AddItem(new GUIContent("Advanced/" + XRayLocalization.GetText("tutorial")), false, XRayTutorial.ShowWindow);
+            menu.AddItem(new GUIContent(advanced + XRayLocalization.GetText("tutorial")), false, XRayTutorial.ShowWindow);
             menu.ShowAsContext();
         }
 
         private void OnSelectionChangedFollow()
         {
-            if (_ignoreFollow) return;
-            // The graph just set this selection itself — do not re-navigate on our own echo.
             if (XRaySelectionSync.Suppress) return;
             if (_followToggle == null || !_followToggle.value) return;
             if (Selection.activeGameObject == null || _graphView == null) return;
@@ -387,7 +396,7 @@ namespace SceneXRay.Editor.Windows
             try
             {
                 _useCacheToggle.SetValueWithoutNotify(false);
-                // Keep history — caller is mid-navigation (double-click / Focus).
+
                 RefreshGraph(resetNavigation: false);
                 return _graphView.FocusOn(go);
             }
@@ -430,8 +439,15 @@ namespace SceneXRay.Editor.Windows
             bool includePrefabs = _prefabToggle.value;
             bool useCache = _useCacheToggle.value;
 
-            string scenePath = UnityEngine.SceneManagement.SceneManager.GetActiveScene().path;
+            bool inPrefabStage = PrefabScanner.IsPrefabStageOpen;
+            string scenePath = inPrefabStage
+                ? null
+                : UnityEngine.SceneManagement.SceneManager.GetActiveScene().path;
+            if (inPrefabStage) useCache = false;
+
             _allLinks = new List<DependencyLink>();
+
+            bool linksIncludeImplicit = false;
 
             if (selectedOnly)
             {
@@ -442,30 +458,50 @@ namespace SceneXRay.Editor.Windows
             {
                 _allLinks = cachedLinks;
             }
-            else if (!includePrefabs && XRayReferenceIndex.IsReady)
+            else if (!inPrefabStage && XRayReferenceIndex.IsReady)
             {
                 _allLinks = new List<DependencyLink>(XRayReferenceIndex.AllLinks);
+                linksIncludeImplicit = SceneXRaySettings.instance.ScanImplicitDependencies;
                 if (useCache && !string.IsNullOrEmpty(scenePath))
-                    XRayCacheManager.Save(scenePath, _allLinks);
+                    XRayCacheManager.Save(scenePath, SceneDataOnly(_allLinks));
             }
             else
             {
                 _allLinks.AddRange(SceneScanner.ScanAllGameObjects());
 
-                if (includePrefabs)
-                    _allLinks.AddRange(PrefabScanner.ScanPrefabAssetsUsedInLoadedScenes());
-
                 if (useCache && !string.IsNullOrEmpty(scenePath))
                     XRayCacheManager.Save(scenePath, _allLinks);
             }
 
-            // Prefabs toggle with cache hit: still merge scene-used prefab assets.
-            if (includePrefabs && useCache && !selectedOnly)
-                _allLinks.AddRange(PrefabScanner.ScanPrefabAssetsUsedInLoadedScenes());
+            if (!selectedOnly)
+                _allLinks.AddRange(ScanPrefabs(_allLinks, includePrefabs));
+
+            if (SceneXRaySettings.instance.ScanImplicitDependencies && !linksIncludeImplicit)
+                _allLinks.AddRange(ImplicitDependencyScanner.Scan(SceneScanner.CollectScannableObjects()));
 
             BuildGraph(resetNavigation);
             ApplyFilters();
             _healthWidget.Refresh(_allLinks);
+        }
+
+        private static List<DependencyLink> SceneDataOnly(List<DependencyLink> links)
+            => links.Where(l => !l.IsImplicit).ToList();
+
+        private List<DependencyLink> ScanPrefabs(List<DependencyLink> sceneLinks, bool includeSceneWide)
+        {
+            var scanned = new HashSet<ulong>();
+            var links = new List<DependencyLink>();
+
+            if (_pinnedPrefabAsset != null && scanned.Add(SceneXRayCompat.IdOf(_pinnedPrefabAsset)))
+                links.AddRange(PrefabScanner.ScanPrefab(_pinnedPrefabAsset));
+
+            if (includeSceneWide)
+            {
+                links.AddRange(PrefabScanner.ScanPrefabAssetsUsedInLoadedScenes(scanned));
+                links.AddRange(PrefabScanner.ScanReferencedPrefabAssets(sceneLinks, scanned));
+            }
+
+            return links;
         }
 
         private void BuildGraph(bool resetNavigation = true)
@@ -491,7 +527,7 @@ namespace SceneXRay.Editor.Windows
                     node.AddToClassList("high-dependency");
 
                 var rootGo = go.transform.root.gameObject;
-                float hue = Mathf.Abs(rootGo.GetInstanceID() * 0.6180339887f) % 1f;
+                float hue = (SceneXRayCompat.IdOf(rootGo) % 4096) * 0.6180339887f % 1f;
                 var tint = Color.HSVToRGB(hue, 0.55f, EditorGUIUtility.isProSkin ? 0.95f : 0.65f);
                 node.style.borderLeftWidth = 3;
                 node.style.borderLeftColor = tint;
@@ -511,14 +547,21 @@ namespace SceneXRay.Editor.Windows
             }
 
             var assetNodes = new Dictionary<Object, XRayNode>();
-            foreach (var l in _allLinks.Where(l => l.IsAssetReference && l.Source != null && l.TargetAsset != null))
+            foreach (var l in _allLinks.Where(l =>
+                         l.Source != null && l.TargetAsset != null && (l.IsAssetReference || l.IsImplicit)))
             {
                 if (!nodeMap.TryGetValue(l.Source, out var sourceNode)) continue;
                 if (!assetNodes.TryGetValue(l.TargetAsset, out var assetNode))
                 {
-                    assetNode = new XRayNode(null, $"Asset: {l.TargetAsset.name}", l.TargetAsset);
-                    assetNode.AddToClassList("asset-node");
-                    XRayCustomization.ApplyAssetNodeStyle(assetNode);
+                    bool isScript = l.TargetAsset is MonoScript;
+                    assetNode = new XRayNode(null,
+                        isScript ? $"Script: {l.TargetAsset.name}" : $"Asset: {l.TargetAsset.name}",
+                        l.TargetAsset);
+                    assetNode.AddToClassList(isScript ? "script-node" : "asset-node");
+                    if (isScript)
+                        XRayCustomization.ApplyScriptNodeStyle(assetNode);
+                    else
+                        XRayCustomization.ApplyAssetNodeStyle(assetNode);
                     assetNodes[l.TargetAsset] = assetNode;
                     nodes.Add(assetNode);
                 }
@@ -539,7 +582,6 @@ namespace SceneXRay.Editor.Windows
             var selected = _graphView.selection;
             if (selected.Count == 0)
             {
-                // Inline status beats a modal for something the user can fix in one click.
                 _graphView.ShowStatus(XRayLocalization.GetText("graph_select_first"));
                 return;
             }
@@ -578,7 +620,6 @@ namespace SceneXRay.Editor.Windows
 
     public static class GraphViewExtensions
     {
-        // Component indices match ApplyLocalizedTexts choices: All, Collider, Rigidbody, Transform, Script
         private static readonly string[] ComponentKeys = { null, "Collider", "Rigidbody", "Transform", "Script" };
 
         public static void Filter(this XRayVirtualGraphView graphView, string searchText, int componentIndex, int depth, int linkTypeIndex)
@@ -626,13 +667,13 @@ namespace SceneXRay.Editor.Windows
                 bool showEdge = true;
                 if (linkTypeIndex > 0 && edge is XRayEdge re && re.Link != null)
                 {
-                    // 0 All, 1 Direct, 2 UnityEvent, 3 Missing, 4 Asset
                     showEdge = linkTypeIndex switch
                     {
                         1 => re.Link.IsDirect,
                         2 => re.Link.IsUnityEvent,
                         3 => re.Link.IsMissing,
                         4 => re.Link.IsAssetReference,
+                        5 => re.Link.IsImplicit,
                         _ => true
                     };
                 }

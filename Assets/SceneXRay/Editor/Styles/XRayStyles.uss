@@ -384,10 +384,26 @@
     padding-right: 7px;
 }
 
+.xray-toolbar-btn {
+    height: 20px;
+    margin-left: 0;
+    margin-right: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    -unity-text-align: middle-center;
+}
+
 /* ===== In-graph toolbar ===== */
 .xray-graph-toolbar {
     height: 22px;
     flex-shrink: 0;
+}
+
+.xray-graph-toolbar .unity-button {
+    height: 20px;
+    padding-top: 0;
+    padding-bottom: 0;
+    -unity-text-align: middle-center;
 }
 
 .xray-graph-toolbar .xray-nav-btn {
@@ -486,7 +502,7 @@
 .xray-btn {
     height: 22px;
     padding: 0 12px;
-    margin: 0 3px;
+    margin: 0 4px;
     border-radius: 5px;
     border-width: 1px;
     font-size: 11px;
@@ -618,7 +634,7 @@
     background-color: rgba(220, 70, 70, 0.5);
 }
 
-/* ===== Report window (health, analysis, missing refs, snapshot diff) ===== */
+/* ===== Report window (health, analysis, missing refs, scene diff) ===== */
 .xray-report-header {
     flex-direction: row;
     align-items: center;
@@ -773,12 +789,6 @@
     border-color: rgb(180, 180, 190);
 }
 
-.xray-search-icon {
-    font-size: 16px;
-    margin-right: 8px;
-    color: rgb(128, 128, 153);
-}
-
 .xray-search-field {
     flex-grow: 1;
     margin: 0;
@@ -793,12 +803,14 @@
 .xray-light .xray-search-field { color: rgb(28, 28, 36); }
 
 .xray-search-btn {
+    height: 24px;
     margin-left: 8px;
     margin-top: 0;
     margin-bottom: 0;
-    padding: 4px 14px;
+    padding: 0 14px;
     border-width: 0;
     -unity-font-style: bold;
+    -unity-text-align: middle-center;
     background-color: rgb(64, 115, 191);
     color: rgb(255, 255, 255);
 }
@@ -948,9 +960,18 @@
 }
 
 .xray-search-drop-label {
-    font-size: 28px;
+    font-size: 18px;
     color: rgb(255, 255, 255);
     -unity-font-style: bold;
+}
+
+.xray-scene-field {
+    min-height: 22px;
+}
+
+.xray-scene-field .unity-base-field__label,
+.xray-scene-field .unity-base-field__input {
+    -unity-text-align: middle-left;
 }
 
 /* ===== Status bar (bottom): paging · counts · hints · zoom ===== */
