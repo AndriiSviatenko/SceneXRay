@@ -5,10 +5,6 @@ using SceneXRay.Editor.Core;
 
 namespace SceneXRay.Editor.Windows
 {
-    /// <summary>
-    /// Bookmark browser — pin GameObjects for quick jump (deduped by GlobalObjectId).
-    /// Hotkeys (Shortcut Manager): Ctrl+Shift+Alt+J toggle, Ctrl+Shift+Alt+K open.
-    /// </summary>
     public class XRayBookmarkWindow : EditorWindow
     {
         private const float SidePad = 14f;
@@ -213,7 +209,6 @@ namespace SceneXRay.Editor.Windows
             if (!string.IsNullOrEmpty(scene))
                 GUI.Label(metaR, scene, Styles.Muted);
 
-            // Click body → ping/select
             Rect hit = new Rect(row.x, row.y, row.width - actionsW, row.height);
             if (hover && Event.current.type == EventType.MouseDown && Event.current.button == 0 && hit.Contains(Event.current.mousePosition))
             {

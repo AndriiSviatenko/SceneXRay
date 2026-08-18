@@ -49,7 +49,6 @@ namespace SceneXRay.Editor.Exporters
                 }
                 else if (l.Target != null && nodeIds.ContainsKey(l.Target))
                 {
-                    // Mermaid edge labels use the A -->|label| B form.
                     string arrow = l.IsUnityEvent ? "-.->" : "-->";
                     string label = l.SourcePropertyName?.Replace("|", "/") ?? "";
                     sb.AppendLine(string.IsNullOrEmpty(label)

@@ -6,10 +6,6 @@ using UnityEngine;
 
 namespace SceneXRay.Editor.Core
 {
-    /// <summary>
-    /// Scene scan cache: in-memory per scene path, persisted as JSON in Library/SceneXRay/Cache
-    /// (outside VCS). Objects are stored as GlobalObjectId strings so the cache survives restarts.
-    /// </summary>
     public static class XRayCacheManager
     {
         private static string CacheFolder => Path.Combine("Library", "SceneXRay", "Cache");
@@ -27,7 +23,6 @@ namespace SceneXRay.Editor.Core
             public LinkType LinkType;
         }
 
-        /// <summary>JsonUtility cannot serialize a bare list — wrap it.</summary>
         [Serializable]
         private class CachedLinkList
         {

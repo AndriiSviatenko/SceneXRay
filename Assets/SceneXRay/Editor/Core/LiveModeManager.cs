@@ -3,10 +3,6 @@ using System;
 
 namespace SceneXRay.Editor.Core
 {
-    /// <summary>
-    /// Live mode: notifies listeners when the scene changes, using ObjectChangeEvents
-    /// with a 0.5 s debounce (no per-frame polling).
-    /// </summary>
     [InitializeOnLoad]
     public static class LiveModeManager
     {

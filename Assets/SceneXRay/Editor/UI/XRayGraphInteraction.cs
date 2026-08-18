@@ -11,7 +11,6 @@ using UnityEngine.UIElements;
 
 namespace SceneXRay.Editor.UI
 {
-    /// <summary>How displayed nodes are placed. Auto = Tree for the full graph, Radial while focused.</summary>
     public enum XRayLayoutMode
     {
         Auto = 0,
@@ -20,14 +19,8 @@ namespace SceneXRay.Editor.UI
         Radial = 3
     }
 
-    /// <summary>
-    /// Shader-Graph-style interaction layer: smooth camera, zoom controls, neighborhood
-    /// highlighting, zoom LOD, clickable breadcrumbs, status bar and keyboard navigation.
-    /// Graph data/history lives in the main <see cref="XRayVirtualGraphView"/> file.
-    /// </summary>
     public partial class XRayVirtualGraphView
     {
-        // Must match the SetupZoom() range in the constructor.
         private const float ZoomMin = 0.05f;
         private const float ZoomMax = 2.5f;
         private const float ZoomStep = 1.25f;
@@ -36,7 +29,6 @@ namespace SceneXRay.Editor.UI
         private const string PrefLayoutMode = "SceneXRay_LayoutMode";
         private const int HighlightNodeBudget = 600;
 
-        // Highlight / dim classes.
         private const string ClassHl = "xray-hl";
         private const string ClassNear = "xray-near";
         private const string ClassDim = "xray-dim";
@@ -64,15 +56,11 @@ namespace SceneXRay.Editor.UI
 
         private XRayLayoutMode _layoutMode = XRayLayoutMode.Auto;
 
-        /// <summary>Ctrl+F — wired by <see cref="XRayWindow"/> to focus its search field.</summary>
         public Action RequestFocusSearch;
 
         public XRayLayoutMode LayoutMode => _layoutMode;
 
-        /// <summary>Current camera zoom (1 = 100%).</summary>
-        public float CurrentZoom => viewTransform.scale.x;
-
-        // ── Setup ─────────────────────────────────────────────────
+        public float CurrentZoom => SceneXRayCompat.ReadViewScale(contentViewContainer).x;
 
         private void SetupInteraction()
         {
@@ -80,20 +68,13 @@ namespace SceneXRay.Editor.UI
 
             CreateStatusBar();
 
-            // Zoom is driven by GraphView's own manipulators, so poll instead of guessing
-            // which event changed it. Cheap: one float compare per tick.
             schedule.Execute(PollZoom).Every(100);
 
-            // Any manual camera input cancels a running frame animation.
             RegisterCallback<WheelEvent>(_ => StopCameraAnimation(), TrickleDown.TrickleDown);
             RegisterCallback<MouseDownEvent>(_ => StopCameraAnimation(), TrickleDown.TrickleDown);
 
-            // Dragging nodes is the one mutation worth undoing — record it when GraphView
-            // reports the move (this is also what marks the arrangement as "custom").
             graphViewChanged = OnGraphViewChanged;
 
-            // Unity routes Ctrl+Z/Ctrl+Y through command events; intercept them so the graph
-            // undoes node moves instead of the editor undoing scene changes behind our back.
             RegisterCallback<ValidateCommandEvent>(e =>
             {
                 if (e.commandName is "Undo" or "Redo")
@@ -113,11 +94,8 @@ namespace SceneXRay.Editor.UI
             return change;
         }
 
-        // ── Status bar ────────────────────────────────────────────
-
         private void CreateStatusBar()
         {
-            // Keeps the legacy class name: it is the anchor for smoke tests and USS.
             _statusBar = new VisualElement { name = "xray-status-bar" };
             _statusBar.AddToClassList("xray-hotkey-legend");
             _statusBar.AddToClassList("xray-status-bar");
@@ -191,7 +169,6 @@ namespace SceneXRay.Editor.UI
             return v;
         }
 
-        /// <summary>Transient status line (replaces the hotkey hint for a few seconds).</summary>
         private void ShowMessage(string message)
         {
             if (_statusMessage == null) return;
@@ -230,15 +207,12 @@ namespace SceneXRay.Editor.UI
                 _zoomLabel.text = Mathf.RoundToInt(CurrentZoom * 100f) + "%";
         }
 
-        // ── Camera ────────────────────────────────────────────────
-
         private void StopCameraAnimation() => _cameraAnim?.Pause();
 
         private void AnimateViewTo(Vector3 targetPos, Vector3 targetScale, float duration = 0.18f)
         {
             _cameraAnim?.Pause();
 
-            // No panel (tests) or a collapsed window: jump, never animate into nothing.
             if (panel == null || contentRect.width < 60f || duration <= 0f)
             {
                 UpdateViewTransform(targetPos, targetScale);
@@ -246,14 +220,14 @@ namespace SceneXRay.Editor.UI
                 return;
             }
 
-            var startPos = viewTransform.position;
-            var startScale = viewTransform.scale;
+            var startPos = SceneXRayCompat.ReadViewPosition(contentViewContainer);
+            var startScale = SceneXRayCompat.ReadViewScale(contentViewContainer);
             double startTime = EditorApplication.timeSinceStartup;
 
             _cameraAnim = schedule.Execute(() =>
             {
                 float k = Mathf.Clamp01((float)((EditorApplication.timeSinceStartup - startTime) / duration));
-                float eased = 1f - Mathf.Pow(1f - k, 3f); // ease-out cubic
+                float eased = 1f - Mathf.Pow(1f - k, 3f);
                 UpdateViewTransform(
                     Vector3.Lerp(startPos, targetPos, eased),
                     Vector3.Lerp(startScale, targetScale, eased));
@@ -281,8 +255,8 @@ namespace SceneXRay.Editor.UI
 
         private bool TryComputeFrame(IReadOnlyList<Node> nodes, out Vector3 pos, out Vector3 scale)
         {
-            pos = viewTransform.position;
-            scale = viewTransform.scale;
+            pos = SceneXRayCompat.ReadViewPosition(contentViewContainer);
+            scale = SceneXRayCompat.ReadViewScale(contentViewContainer);
 
             var view = contentRect;
             if (nodes == null || nodes.Count == 0 || view.width < 80f || view.height < 80f)
@@ -299,8 +273,8 @@ namespace SceneXRay.Editor.UI
             }
             if (!any) return false;
 
-            const float insetTop = 26f;    // in-graph toolbar
-            const float insetBottom = 30f; // status bar
+            const float insetTop = 26f;
+            const float insetBottom = 30f;
             const float margin = 44f;
 
             float availW = Mathf.Max(60f, view.width - margin * 2f);
@@ -318,7 +292,6 @@ namespace SceneXRay.Editor.UI
             return true;
         }
 
-        /// <summary>Fit everything currently displayed into view (smooth).</summary>
         public void FrameGraph(bool animated = true)
         {
             var nodes = DisplayedNodes();
@@ -331,7 +304,6 @@ namespace SceneXRay.Editor.UI
             AnimateViewTo(p, s, animated ? 0.18f : 0f);
         }
 
-        /// <summary>Center the camera on one node without changing zoom.</summary>
         public void CenterOn(Node node, bool animated = true)
         {
             if (node == null) return;
@@ -346,7 +318,6 @@ namespace SceneXRay.Editor.UI
             AnimateViewTo(target, new Vector3(s, s, 1f), animated ? 0.16f : 0f);
         }
 
-        /// <summary>Pan only if the node sits outside the comfortable viewport area.</summary>
         private void EnsureVisible(Node node)
         {
             if (node == null) return;
@@ -355,7 +326,7 @@ namespace SceneXRay.Editor.UI
 
             float s = CurrentZoom;
             var b = NodeBounds(node);
-            var origin = viewTransform.position;
+            var origin = SceneXRayCompat.ReadViewPosition(contentViewContainer);
             var screen = new Rect(b.x * s + origin.x, b.y * s + origin.y, b.width * s, b.height * s);
 
             const float pad = 60f;
@@ -363,8 +334,6 @@ namespace SceneXRay.Editor.UI
                            screen.xMax > view.width - pad || screen.yMax > view.height - pad - 30f;
             if (outside) CenterOn(node);
         }
-
-        // ── Zoom ──────────────────────────────────────────────────
 
         private void ZoomAtCenter(float newScale, float duration = 0.12f)
         {
@@ -374,7 +343,8 @@ namespace SceneXRay.Editor.UI
 
             var view = contentRect;
             var center = new Vector2(view.width * 0.5f, view.height * 0.5f);
-            var current = new Vector2(viewTransform.position.x, viewTransform.position.y);
+            var currentPosition = SceneXRayCompat.ReadViewPosition(contentViewContainer);
+            var current = new Vector2(currentPosition.x, currentPosition.y);
             var contentAtCenter = (center - current) / old;
             var target = center - contentAtCenter * newScale;
 
@@ -391,13 +361,10 @@ namespace SceneXRay.Editor.UI
             if (Mathf.Abs(s - _lastZoom) < 0.005f) return;
             _lastZoom = s;
 
-            // Zoom LOD: strip node detail when zoomed out so the graph stays readable.
             EnableInClassList("xray-zoom-far", s < 0.4f);
             EnableInClassList("xray-zoom-mid", s >= 0.4f && s < 0.75f);
             UpdateZoomLabel();
         }
-
-        // ── Adjacency (shared by highlight, ego network and layouts) ──
 
         private void BuildAdjacency()
         {
@@ -430,13 +397,10 @@ namespace SceneXRay.Editor.UI
                 foreach (var m in ins) yield return m;
         }
 
-        // ── Neighborhood highlight ────────────────────────────────
-
         private readonly HashSet<Node> _hoverWired = new();
 
         private void RegisterHoverHighlight(Node node)
         {
-            // SetContent can be called repeatedly with the same node instances (Live Mode).
             if (node == null || !_hoverWired.Add(node)) return;
             node.RegisterCallback<MouseEnterEvent>(_ => SetHoverNode(node));
             node.RegisterCallback<MouseLeaveEvent>(_ => { if (_hoverNode == node) SetHoverNode(null); });
@@ -455,7 +419,7 @@ namespace SceneXRay.Editor.UI
             {
                 if (ve == null) continue;
                 if (ve is XRayEdge xEdge)
-                    xEdge.SetHighlight(XRayEdgeHighlight.None); // back to the Settings color
+                    xEdge.SetHighlight(XRayEdgeHighlight.None);
                 ve.RemoveFromClassList(ClassHl);
                 ve.RemoveFromClassList(ClassNear);
                 ve.RemoveFromClassList(ClassDim);
@@ -536,8 +500,6 @@ namespace SceneXRay.Editor.UI
             UpdateHighlight();
         }
 
-        // ── Breadcrumbs ───────────────────────────────────────────
-
         private void RebuildBreadcrumbs()
         {
             if (_breadcrumbs == null) return;
@@ -550,8 +512,6 @@ namespace SceneXRay.Editor.UI
 
             PushCrumb(XRayLocalization.GetText("graph_crumb_all"), 0);
 
-            // Collapse repeated drill-ins on the same object — history can legitimately
-            // contain them (Follow mode, re-focus after a rebuild) but they read as noise.
             var trail = new List<int>();
             UnityEngine.Object last = null;
             for (int i = 1; i <= _historyIndex && i < _history.Count; i++)
@@ -588,7 +548,6 @@ namespace SceneXRay.Editor.UI
             _crumbCount++;
         }
 
-        /// <summary>Jump straight to a history entry (breadcrumb click).</summary>
         public void NavigateToHistoryIndex(int index)
         {
             if (index < 0 || index >= _history.Count || index == _historyIndex) return;
@@ -621,8 +580,6 @@ namespace SceneXRay.Editor.UI
             UpdateNavButtons();
         }
 
-        // ── Layout mode ───────────────────────────────────────────
-
         private void CreateLayoutMenu(Toolbar toolbar)
         {
             _layoutMenu = new ToolbarMenu();
@@ -650,7 +607,6 @@ namespace SceneXRay.Editor.UI
         {
             if (_layoutMenu == null) return;
 
-            // Rebuilt on every language change — DropdownMenu labels are baked at append time.
             _layoutMenu.menu.ClearItems();
             AppendLayoutChoice(XRayLayoutMode.Auto, "graph_layout_auto");
             AppendLayoutChoice(XRayLayoutMode.Tree, "graph_layout_tree");
@@ -692,14 +648,12 @@ namespace SceneXRay.Editor.UI
             _layoutMenu.tooltip = XRayLocalization.GetText("graph_layout_tt");
         }
 
-        /// <summary>Re-run the active layout on what is on screen right now.</summary>
         public void RelayoutNow()
         {
             ApplyActiveLayout();
             AfterLayoutCommit();
         }
 
-        /// <summary>Layout used by navigation — no framing side effects.</summary>
         private void ApplyActiveLayout()
         {
             var mode = _layoutMode;
@@ -720,7 +674,6 @@ namespace SceneXRay.Editor.UI
             }
         }
 
-        /// <summary>Rings by hop distance around the focus center — reads like a mind map.</summary>
         private void RadialLayoutCore()
         {
             var nodes = DisplayedNodes();
@@ -747,7 +700,6 @@ namespace SceneXRay.Editor.UI
                 }
             }
 
-            // Anything the BFS could not reach (filtered edges) goes to an outer ring.
             int maxRing = ring.Count > 0 ? ring.Values.Max() : 0;
             foreach (var n in nodes)
                 if (!ring.ContainsKey(n))
@@ -763,7 +715,6 @@ namespace SceneXRay.Editor.UI
                     .OrderBy(n => n.title, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                // Grow the radius when a ring is crowded so cards never overlap.
                 float radius = Mathf.Max(240f * group.Key, members.Count * 82f / (2f * Mathf.PI));
                 float step = 2f * Mathf.PI / members.Count;
                 float offset = group.Key % 2 == 0 ? 0f : step * 0.5f;
@@ -772,14 +723,12 @@ namespace SceneXRay.Editor.UI
                 {
                     float a = offset + i * step;
                     members[i].SetPosition(new Rect(
-                        origin.x + Mathf.Cos(a) * radius * 1.25f, // wider than tall: cards are wide
+                        origin.x + Mathf.Cos(a) * radius * 1.25f,
                         origin.y + Mathf.Sin(a) * radius,
                         0, 0));
                 }
             }
         }
-
-        // ── Keyboard navigation between nodes ─────────────────────
 
         private static Vector2 CenterOf(Node n)
         {
@@ -787,7 +736,6 @@ namespace SceneXRay.Editor.UI
             return b.center;
         }
 
-        /// <summary>Arrow keys walk the graph spatially (like moving a cursor between cards).</summary>
         private bool MoveSelection(Vector2 dir)
         {
             var displayed = DisplayedNodes();
@@ -833,8 +781,6 @@ namespace SceneXRay.Editor.UI
             EnsureVisible(node);
         }
 
-        // ── Undo / redo of node arrangement ───────────────────────
-
         private const int UndoDepth = 32;
         private const string PrefAutoRestore = "SceneXRay_AutoRestoreLayout";
 
@@ -846,7 +792,6 @@ namespace SceneXRay.Editor.UI
         public bool CanUndoLayout => _undoStack.Count > 0;
         public bool CanRedoLayout => _redoStack.Count > 0;
 
-        /// <summary>True once a baseline arrangement has been recorded for undo.</summary>
         private bool HasPositionBaseline => _committed != null;
 
         private Dictionary<Node, Rect> SnapshotPositions()
@@ -857,7 +802,6 @@ namespace SceneXRay.Editor.UI
             return map;
         }
 
-        /// <summary>Call right after node positions changed (drag, layout, restore).</summary>
         private void CommitPositions()
         {
             if (_committed != null)
@@ -869,7 +813,6 @@ namespace SceneXRay.Editor.UI
             _committed = SnapshotPositions();
         }
 
-        /// <summary>Reset the undo baseline (new graph content — old positions are meaningless).</summary>
         private void ResetPositionHistory()
         {
             _undoStack.Clear();
@@ -921,10 +864,7 @@ namespace SceneXRay.Editor.UI
             ShowMessage(XRayLocalization.GetText("graph_redo_done"));
         }
 
-        /// <summary>Guard so the KeyDown fallback does not repeat an Undo already run by the command event.</summary>
         private bool UndoJustHandled => EditorApplication.timeSinceStartup - _lastUndoTime < 0.15;
-
-        // ── Saved layouts (per scene) ─────────────────────────────
 
         public static bool AutoRestoreLayout
         {
@@ -934,11 +874,6 @@ namespace SceneXRay.Editor.UI
 
         public bool HasSavedLayout => XRayLayoutStore.HasLayout(XRayLayoutStore.CurrentSceneKey);
 
-        /// <summary>
-        /// Stable layout keys for every node in one pass. GlobalObjectId lookups are the
-        /// expensive part (the API is literally named …Slow), so scene objects go through the
-        /// batch overload instead of one call per card.
-        /// </summary>
         private Dictionary<Node, string> BuildLayoutKeys()
         {
             var keys = new Dictionary<Node, string>(_allNodes.Count);
@@ -993,7 +928,6 @@ namespace SceneXRay.Editor.UI
             return sb.ToString();
         }
 
-        /// <summary>Store the current arrangement for this scene.</summary>
         public bool SaveLayout()
         {
             if (_allNodes.Count == 0)
@@ -1016,7 +950,6 @@ namespace SceneXRay.Editor.UI
             return true;
         }
 
-        /// <summary>Re-apply the stored arrangement. Returns how many nodes were moved.</summary>
         public int RestoreLayout(bool silent = false)
         {
             var saved = XRayLayoutStore.Load(XRayLayoutStore.CurrentSceneKey);

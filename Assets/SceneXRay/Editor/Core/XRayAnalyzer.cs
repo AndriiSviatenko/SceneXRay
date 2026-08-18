@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace SceneXRay.Editor.Core
 {
-    /// <summary>One-pass health / cycle / god-object report over a link set.</summary>
     public readonly struct HealthReport
     {
         public float Score { get; }
@@ -35,10 +34,6 @@ namespace SceneXRay.Editor.Core
 
     public static class XRayAnalyzer
     {
-        /// <summary>
-        /// Finds dependency cycles via DFS. Each cycle is returned as the ordered list of links
-        /// forming the loop, reconstructed from the current DFS path.
-        /// </summary>
         public static List<List<DependencyLink>> FindCycles(List<DependencyLink> links)
         {
             var graph = new Dictionary<GameObject, List<DependencyLink>>();
@@ -96,7 +91,6 @@ namespace SceneXRay.Editor.Core
             return cycles;
         }
 
-        /// <summary>Undirected degree map (source + target counts) in a single pass.</summary>
         public static Dictionary<GameObject, int> BuildDegreeMap(List<DependencyLink> links)
         {
             var dict = new Dictionary<GameObject, int>();
@@ -125,7 +119,6 @@ namespace SceneXRay.Editor.Core
                 .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
         }
 
-        /// <summary>Single pass: score, missing, cycles, god objects. Prefer this over separate calls.</summary>
         public static HealthReport Analyze(List<DependencyLink> links, int godThreshold = 10)
         {
             if (links == null || links.Count == 0)

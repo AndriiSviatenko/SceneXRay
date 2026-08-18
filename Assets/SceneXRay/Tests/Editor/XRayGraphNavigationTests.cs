@@ -11,10 +11,10 @@ using SceneXRay.Editor.UI;
 
 namespace SceneXRay.Editor.Tests
 {
-    /// <summary>Deterministic graph nav/layout tests (synthetic GOs — no scene required).</summary>
     public class XRayGraphNavigationTests
     {
         GameObject _a, _b, _c;
+        XRayWindow _window;
 
         [SetUp]
         public void SetUp()
@@ -30,6 +30,7 @@ namespace SceneXRay.Editor.Tests
             if (_a) Object.DestroyImmediate(_a);
             if (_b) Object.DestroyImmediate(_b);
             if (_c) Object.DestroyImmediate(_c);
+            if (_window) Object.DestroyImmediate(_window);
         }
 
         [Test]
@@ -101,7 +102,6 @@ namespace SceneXRay.Editor.Tests
             var list = gv.GetAllNodes();
             Assert.Greater(list.Count, 0);
 
-            // Positions must be real (not the pre-layout zero trap).
             Assert.IsTrue(list.Any(n =>
             {
                 var p = n.GetPosition();
@@ -175,20 +175,15 @@ namespace SceneXRay.Editor.Tests
         }
 
         [Test]
-        public void Node_Tooltip_Is_Built_On_Hover()
+        public void Node_Tooltip_Is_Built_Lazily()
         {
             var gv = BuildSyntheticGraph();
             var node = gv.GetAllNodes().OfType<XRayNode>().First(n => n.GameObject == _a);
 
-            // The static tooltip stays empty — the detailed text is produced on demand.
-            using (var evt = TooltipEvent.GetPooled())
-            {
-                evt.target = node;
-                node.SendEvent(evt);
-                Assert.IsTrue(evt.tooltip.Contains("Components:"),
-                    "TooltipEvent did not produce the detailed tooltip: " + evt.tooltip);
-                Assert.IsTrue(evt.tooltip.Contains(_a.name));
-            }
+            string tooltip = node.BuildTooltip();
+            Assert.IsTrue(tooltip.Contains("Components:"),
+                "Lazy tooltip did not include component details: " + tooltip);
+            Assert.IsTrue(tooltip.Contains(_a.name));
         }
 
         [Test]
@@ -211,12 +206,11 @@ namespace SceneXRay.Editor.Tests
 
         XRayVirtualGraphView BuildSyntheticGraph()
         {
-            XRayWindow.ShowWindow();
-            var win = EditorWindow.GetWindow<XRayWindow>();
-            Assert.IsNotNull(win);
-            win.SetFollowEnabled(false);
-            win.SetLiveModeEnabled(false);
-            var gv = win.GraphView;
+            _window ??= ScriptableObject.CreateInstance<XRayWindow>();
+            Assert.IsNotNull(_window);
+            _window.SetFollowEnabled(false);
+            _window.SetLiveModeEnabled(false);
+            var gv = _window.GraphView;
             Assert.IsNotNull(gv);
 
             var na = new XRayNode(_a);

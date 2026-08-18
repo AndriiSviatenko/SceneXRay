@@ -4,7 +4,7 @@
 
 ### See every dependency in your Unity scene — before it breaks the build
 
-Unity 2022.3+ · verified on Unity 6000.0 · editor-only · no external dependencies · MIT
+Unity 6000.0 LTS+ · verified on Unity 6000.0 and 6000.5 · editor-only · no external dependencies · MIT
 
 **[Documentation](https://andriisviatenko.github.io/SceneXRay/)** · **[Issues](https://github.com/AndriiSviatenko/SceneXRay/issues)**
 
@@ -37,6 +37,9 @@ git clone https://github.com/AndriiSviatenko/SceneXRay.git
 
 There is no bootstrap call, no prefab to drop in a scene, and no settings to fill in.
 
+To try a ready-made graph, open `Assets/SceneXRay/Samples/SceneXRay Demo.unity` before opening
+the graph window. The sample uses only Unity primitives and one local material.
+
 ---
 
 ## Quick start
@@ -68,8 +71,9 @@ There is no bootstrap call, no prefab to drop in a scene, and no settings to fil
 | **Bookmarks** | Pin objects for quick jumps — `Ctrl+Shift+Alt+J` to toggle, `…+K` to open |
 | **Inspector strip** | References / Referenced By cards on GameObjects, prefab assets and ScriptableObjects |
 | **Scene overlay** | Dependency lines drawn in the Scene View, colour-coded by link type |
-| **Snapshots & diff** | Checkpoint the graph, compare two snapshots, or diff two scene assets |
-| **Export** | JSON · CSV · HTML (D3.js) · PlantUML · Mermaid · Markdown |
+| **Scene diff** | Compare the dependency links of two scene assets without opening them permanently |
+| **Code dependencies** | Optional scan for `Find*<T>()`, `GetComponent<T>()`, object-name and tag lookups |
+| **Export** | JSON · CSV · self-contained interactive HTML · Mermaid · Markdown |
 | **Build guard + CLI** | Quality gates in batchmode, non-zero exit code when the scene is broken |
 | **Localization** | English + Ukrainian, switchable in Project Settings |
 
@@ -105,6 +109,7 @@ category, the window/bookmark chords under `Main Menu`.
 | **UnityEvent** | persistent listener target + method | `Button.m_OnClick → GameManager.Restart()` |
 | **Asset** | any referenced project asset | `MeshRenderer → M_Player`, `TMP_Text → LiberationSans SDF` |
 | **Missing** | serialized reference whose target is gone | `Spawner.target → Missing` |
+| **In code** | opt-in code lookup | `Spawner → <EnemyPool>`, `HUD → FindWithTag("Player")` |
 
 Components listed in **Ignored Components** are skipped (`Transform`, `RectTransform` by default),
 `m_Script` self-links are never recorded, and Unity's built-in resources are excluded unless you
@@ -119,10 +124,10 @@ opt in — so the graph shows *your* wiring, not engine noise.
 | Group | Setting | Effect |
 |-------|---------|--------|
 | Overlay | Enable / Animate | Scene View dependency lines |
-| Colors | Direct · UnityEvent · Missing · Asset · Line Width | Applies to **both** the overlay and the graph edges, live |
+| Colors | Direct · UnityEvent · Missing · Asset · In Code · Line Width | Applies to **both** the overlay and the graph edges, live |
 | Inspector | Inspector Integration | The References / Referenced By strip |
 | Graph | Max Nodes In Graph | Page size for very large scenes |
-| Scanning | Ignored Components · Scan Asset References · Include Built-in Assets | What the scanner records — changing these rescans immediately |
+| Scanning | Ignored Components · Asset References · Built-ins · Code Dependencies | What the scanner records — changing these rescans immediately |
 | Build | Build Guard · Fail Build On Missing Refs | CI enforcement |
 | Language | English / Українська | Editor UI language |
 
@@ -149,20 +154,21 @@ Assets/SceneXRay/          the asset — copy this folder into your own project
   Editor/Core/             scanning, reverse index, analysis, storage
   Editor/UI/               graph canvas, inspector strip, scene overlay
   Editor/Windows/          graph, search, bookmarks, references, fix-missing, diff
-  Editor/Exporters/        JSON · CSV · HTML · PlantUML · Mermaid · Markdown
-  Tests/Editor/            20 EditMode tests
+  Editor/Exporters/        JSON · CSV · HTML · Mermaid · Markdown
+  Documentation/           offline guide, license and third-party notice
+  Samples/                 pipeline-neutral dependency demo scene
+  Tests/Editor/            23 repository/CI EditMode tests (excluded from the release archive)
 docs/index.html            the documentation page, published via GitHub Pages
-Assets/Scenes/             sample scene for trying the tool
 ```
 
-Saved arrangements live in `UserSettings/SceneXRay/`, caches and snapshots in `Library/SceneXRay/` —
+Saved arrangements live in `UserSettings/SceneXRay/`, caches and bookmarks in `Library/SceneXRay/` —
 nothing SceneXRay writes ends up in version control.
 
 ---
 
 ## Requirements
 
-- Unity **2022.3 LTS or newer** (verified on Unity 6000.0)
+- Unity **6000.0 LTS (Unity 6) or newer** (verified on Unity 6000.0.62f1 and 6000.5.6f1)
 - No packages, no third-party libraries, no runtime footprint
 
 ---

@@ -11,8 +11,6 @@ namespace SceneXRay.Editor.Windows
 {
     public class XRayGlobalSearchWindow : EditorWindow
     {
-        private const string StyleSheetPath = "Assets/SceneXRay/Editor/Styles/XRayStyles.uss";
-
         private enum SearchMode { Scene, Project, All }
 
         private TextField _searchTextField;
@@ -57,7 +55,7 @@ namespace SceneXRay.Editor.Windows
             root.EnableInClassList("xray-dark", EditorGUIUtility.isProSkin);
             root.EnableInClassList("xray-light", !EditorGUIUtility.isProSkin);
 
-            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(StyleSheetPath);
+            var styleSheet = SceneXRayCompat.LoadStyleSheet();
             if (styleSheet != null)
                 root.styleSheets.Add(styleSheet);
 
@@ -114,10 +112,6 @@ namespace SceneXRay.Editor.Windows
             var searchRow = new VisualElement();
             searchRow.AddToClassList("xray-search-row");
             searchWrapper.Add(searchRow);
-
-            var searchIcon = new Label("🔍");
-            searchIcon.AddToClassList("xray-search-icon");
-            searchRow.Add(searchIcon);
 
             _searchTextField = new TextField();
             _searchTextField.AddToClassList("xray-search-field");
@@ -182,7 +176,9 @@ namespace SceneXRay.Editor.Windows
             {
                 if (element is not Label label || index >= _suggestions.Count) return;
                 var go = _suggestions[index];
-                string source = go.scene.IsValid() ? "[Scene]" : "[Prefab]";
+                string source = go.scene.IsValid()
+                    ? XRayLocalization.GetText("source_scene")
+                    : XRayLocalization.GetText("source_prefab");
                 label.text = $"{go.name} {source}";
                 label.userData = go;
             };
@@ -235,7 +231,7 @@ namespace SceneXRay.Editor.Windows
                 if (children.Count < 3) return;
 
                 if (children[0] is Label nameLabel)
-                    nameLabel.text = link.Source?.name ?? "Unknown";
+                    nameLabel.text = link.Source?.name ?? XRayLocalization.GetText("unknown");
 
                 if (children[1] is Label infoLabel)
                 {
@@ -243,10 +239,10 @@ namespace SceneXRay.Editor.Windows
                     bool targetIsScene = link.Target != null && link.Target.scene.IsValid();
                     string type = sourceIsScene switch
                     {
-                        true when targetIsScene => "Scene→Scene",
-                        false when !targetIsScene => "Prefab→Prefab",
-                        true => "Scene→Prefab",
-                        _ => "Prefab→Scene"
+                        true when targetIsScene => XRayLocalization.GetText("relation_scene_scene"),
+                        false when !targetIsScene => XRayLocalization.GetText("relation_prefab_prefab"),
+                        true => XRayLocalization.GetText("relation_scene_prefab"),
+                        _ => XRayLocalization.GetText("relation_prefab_scene")
                     };
                     infoLabel.text = type;
                     infoLabel.tooltip = type;
@@ -309,12 +305,14 @@ namespace SceneXRay.Editor.Windows
             _projectToggle.text = XRayLocalization.GetText("mode_project");
             _searchBtn.text = XRayLocalization.GetText("search");
             _searchTextField.tooltip = XRayLocalization.GetText("tt_search");
-            _emptyTitle.text = "🔍 " + XRayLocalization.GetText("empty_search_title");
+            _emptyTitle.text = XRayLocalization.GetText("empty_search_title");
             _emptyHint.text = XRayLocalization.GetText("empty_search_hint");
-            _dropLabel.text = "📥 " + XRayLocalization.GetText("drop_here");
+            _dropLabel.text = XRayLocalization.GetText("drop_here");
 
             int count = _resultList?.itemsSource?.Count ?? 0;
             _resultCountLabel.text = XRayLocalization.Format("results_found", count);
+            _suggestionsList?.RefreshItems();
+            _resultList?.RefreshItems();
         }
 
         private void OnModeChanged()
@@ -332,7 +330,7 @@ namespace SceneXRay.Editor.Windows
 
             if (_currentMode is SearchMode.All or SearchMode.Scene)
             {
-                var sceneObjects = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+                var sceneObjects = SceneXRayCompat.FindAll<GameObject>(FindObjectsInactive.Exclude);
                 _allObjectsCache.AddRange(sceneObjects);
             }
 

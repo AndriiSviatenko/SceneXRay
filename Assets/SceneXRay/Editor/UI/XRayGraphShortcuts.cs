@@ -6,10 +6,6 @@ using UnityEngine.UIElements;
 
 namespace SceneXRay.Editor.UI
 {
-    /// <summary>
-    /// Graph navigation shortcuts scoped to <see cref="XRayWindow"/>.
-    /// GraphView built-ins: F = Frame Selection, A = Frame All.
-    /// </summary>
     static class XRayGraphShortcuts
     {
         static XRayVirtualGraphView Graph
@@ -37,7 +33,6 @@ namespace SceneXRay.Editor.UI
             if (CanHandleGraphKeys()) Graph?.GoBack();
         }
 
-        // Backspace = browser-style Back (more reliable than Alt on Windows menus).
         [Shortcut("SceneXRay/Graph: Navigate Back (Backspace)", typeof(XRayWindow), KeyCode.Backspace)]
         static void BackSpace(ShortcutArguments _)
         {
@@ -49,9 +44,6 @@ namespace SceneXRay.Editor.UI
         {
             if (CanHandleGraphKeys()) Graph?.GoForward();
         }
-
-        // Escape / Return are reserved by the Shortcut Manager (it registers them unbound),
-        // so those two live only in XRayVirtualGraphView.OnGraphKeyDown.
 
         [Shortcut("SceneXRay/Graph: Expand Radius", typeof(XRayWindow), KeyCode.Equals)]
         static void Expand(ShortcutArguments _)

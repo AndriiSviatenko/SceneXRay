@@ -16,10 +16,6 @@ namespace SceneXRay.Editor.Core
         public string ScenePath;
     }
 
-    /// <summary>
-    /// Persistent bookmarks keyed by GlobalObjectId (no duplicates).
-    /// Stored in Library/SceneXRay/bookmarks.json.
-    /// </summary>
     public static class XRayBookmarks
     {
         private const string FilePath = "Library/SceneXRay/bookmarks.json";
@@ -65,7 +61,6 @@ namespace SceneXRay.Editor.Core
             return false;
         }
 
-        /// <summary>Adds if missing. Returns false when duplicate or invalid.</summary>
         public static bool TryAdd(GameObject go, out string message)
         {
             message = null;
@@ -116,7 +111,6 @@ namespace SceneXRay.Editor.Core
             return !string.IsNullOrEmpty(id) && Remove(id);
         }
 
-        /// <summary>Toggle selection. Returns true if now bookmarked.</summary>
         public static bool Toggle(GameObject go, out string message)
         {
             if (go == null)
@@ -165,20 +159,17 @@ namespace SceneXRay.Editor.Core
                 string json = File.ReadAllText(FilePath);
                 if (string.IsNullOrWhiteSpace(json)) return;
 
-                // Legacy format was a JSON object (name -> globalId); current format is a list.
                 if (json.TrimStart().StartsWith("{") && !json.Contains("\"entries\""))
                 {
                     MigrateLegacyObject(json);
                     return;
                 }
 
-                // Pre-1.0 files were a bare JSON array; JsonUtility only reads objects, so wrap it.
                 if (json.TrimStart().StartsWith("["))
                     json = "{\"entries\":" + json + "}";
 
                 _entries = JsonUtility.FromJson<BookmarkList>(json)?.entries ?? new List<BookmarkEntry>();
 
-                // Dedupe by Id (keep first)
                 var seen = new HashSet<string>();
                 _entries = _entries
                     .Where(e => e != null && !string.IsNullOrEmpty(e.Id) && seen.Add(e.Id))
@@ -197,7 +188,6 @@ namespace SceneXRay.Editor.Core
             public List<BookmarkEntry> entries = new();
         }
 
-        /// <summary>Pre-1.0 bookmarks were a flat {"name":"globalId"} object — read once, then rewrite.</summary>
         private static void MigrateLegacyObject(string json)
         {
             foreach (Match m in Regex.Matches(json, @"""(?<k>[^""]+)""\s*:\s*""(?<v>[^""]*)"""))

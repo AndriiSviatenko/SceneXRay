@@ -6,11 +6,6 @@ using UnityEngine;
 
 namespace SceneXRay.Editor.Core
 {
-    /// <summary>
-    /// Batchmode entry point:
-    /// Unity -batchmode -executeMethod SceneXRay.Editor.Core.CommandLine.ScanScene -scene Path.unity -output out.json
-    /// Exits with code 1 when quality gates fail.
-    /// </summary>
     public static class CommandLine
     {
         [Serializable]
@@ -24,7 +19,6 @@ namespace SceneXRay.Editor.Core
             public string LinkType;
         }
 
-        /// <summary>JsonUtility cannot serialize a bare list — wrap it so the output stays valid JSON.</summary>
         [Serializable]
         private class LinkDtoList
         {
@@ -48,7 +42,6 @@ namespace SceneXRay.Editor.Core
             var links = SceneScanner.ScanAllGameObjects();
             var errors = QualityGateManager.Validate(links);
 
-            // Serialize plain DTOs — GameObject references are not JSON-serializable.
             var dtos = links.Select(l => new LinkDto
             {
                 Source = l.Source != null ? GetPath(l.Source) : null,

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using SceneXRay.Editor.UI;
 using System.Text;
 using UnityEditor;

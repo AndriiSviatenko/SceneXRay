@@ -5,6 +5,7 @@ using UnityEngine.Events;
 using SceneXRay.Editor.Core;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 
 namespace SceneXRay.Editor.Tests
 {
@@ -25,6 +26,8 @@ namespace SceneXRay.Editor.Tests
             foreach (var go in _spawned)
                 if (go != null) Object.DestroyImmediate(go);
             _spawned.Clear();
+            SceneScanner.ClearTypeCaches();
+            CodeDependencyScanner.ClearCache();
         }
 
         [Test]
@@ -177,6 +180,58 @@ namespace SceneXRay.Editor.Tests
             Assert.Less(report.Score, 100f);
         }
 
+        [Test]
+        public void ScanGameObject_FindsHiddenSerializedReference()
+        {
+            var source = Spawn("HiddenSource");
+            var target = Spawn("HiddenTarget");
+            source.AddComponent<HiddenReferenceComponent>().hiddenReference = target;
+
+            var links = SceneScanner.ScanGameObject(source);
+
+            Assert.IsTrue(links.Any(l => l.Target == target),
+                "[HideInInspector] references are serialized and must remain visible to the scanner.");
+        }
+
+        [Test]
+        public void ScanGameObject_DoesNotCacheEmptyCollectionAsReferenceFreeType()
+        {
+            var empty = Spawn("EmptyCollection");
+            empty.AddComponent<CollectionReferenceComponent>();
+            SceneScanner.ScanGameObject(empty);
+
+            var source = Spawn("PopulatedCollection");
+            var target = Spawn("CollectionTarget");
+            source.AddComponent<CollectionReferenceComponent>().references.Add(target);
+
+            var links = SceneScanner.ScanGameObject(source);
+
+            Assert.IsTrue(links.Any(l => l.Target == target),
+                "An empty collection on one instance must not suppress populated instances of the same type.");
+        }
+
+        [Test]
+        public void CodeDependencyScanner_SeparatesNamesFromTags()
+        {
+            string path = Path.Combine(Path.GetTempPath(), $"SceneXRay-{System.Guid.NewGuid():N}.cs");
+            try
+            {
+                File.WriteAllText(path,
+                    "class Lookup { void Run() { GameObject.Find(\"PlayerRoot\"); " +
+                    "GameObject.FindWithTag(\"Player\"); } }");
+
+                var dependencies = CodeDependencyScanner.GetDependencies(path);
+
+                Assert.IsTrue(dependencies.ObjectNames.Contains("PlayerRoot"));
+                Assert.IsFalse(dependencies.ObjectNames.Contains("Player"));
+                Assert.IsTrue(dependencies.ObjectTags.Contains("Player"));
+            }
+            finally
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+        }
+
         private class TestComponent : MonoBehaviour
         {
             public GameObject reference;
@@ -190,6 +245,16 @@ namespace SceneXRay.Editor.Tests
         private class EventReceiver : MonoBehaviour
         {
             public void Receive() { }
+        }
+
+        private class HiddenReferenceComponent : MonoBehaviour
+        {
+            [HideInInspector] public GameObject hiddenReference;
+        }
+
+        private class CollectionReferenceComponent : MonoBehaviour
+        {
+            public List<GameObject> references = new List<GameObject>();
         }
     }
 }

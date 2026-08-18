@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace SceneXRay.Editor.Core
 {
-    /// <summary>Shared component-filter matching for graph toolbar and tests.</summary>
     public static class XRayComponentFilter
     {
         public static bool Matches(GameObject go, string filter)

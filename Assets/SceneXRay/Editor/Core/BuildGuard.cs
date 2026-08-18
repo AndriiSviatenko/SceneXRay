@@ -6,10 +6,6 @@ using System.Linq;
 
 namespace SceneXRay.Editor.Core
 {
-    /// <summary>
-    /// Pre-build validation. In batchmode (CI) never shows dialogs: logs the report and
-    /// fails the build only when FailBuildOnMissingReferences is enabled in settings.
-    /// </summary>
     public class BuildGuard : IPreprocessBuildWithReport
     {
         public int callbackOrder => 0;
@@ -19,7 +15,7 @@ namespace SceneXRay.Editor.Core
             var settings = SceneXRaySettings.instance;
             if (!settings.EnableBuildGuard) return;
 
-            var links = SceneScanner.ScanAllGameObjects();
+            var links = SceneScanner.ScanAllScenes(enabledOnly: true);
             int missing = links.Count(l => l.IsMissing);
             int cycles = XRayAnalyzer.FindCycles(links).Count;
             if (missing == 0 && cycles == 0) return;
@@ -28,7 +24,7 @@ namespace SceneXRay.Editor.Core
 
             if (Application.isBatchMode)
             {
-                if (settings.FailBuildOnMissingReferences)
+                if (settings.FailBuildOnMissingReferences && missing > 0)
                 {
                     Debug.LogError(msg + " Build failed (FailBuildOnMissingReferences is enabled).");
                     throw new BuildFailedException("Build cancelled by SceneXRay Build Guard.");

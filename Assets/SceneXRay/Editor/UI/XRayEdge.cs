@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace SceneXRay.Editor.UI
 {
-    /// <summary>Neighborhood highlight state of an edge (drives its accent color).</summary>
     public enum XRayEdgeHighlight
     {
         None = 0,
@@ -17,7 +16,6 @@ namespace SceneXRay.Editor.UI
     {
         public DependencyLink Link { get; private set; }
 
-        /// <summary>Synthetic endpoint node (missing-reference or asset node with no GameObject).</summary>
         public XRayNode SyntheticTargetNode { get; private set; }
 
         private XRayEdgeHighlight _highlight;
@@ -41,16 +39,13 @@ namespace SceneXRay.Editor.UI
             if (link.IsMissing) AddToClassList("missing-edge");
             else if (link.IsUnityEvent) AddToClassList("unityevent-edge");
             else if (link.IsAssetReference) AddToClassList("asset-edge");
+            else if (link.IsImplicit) AddToClassList("implicit-edge");
             else AddToClassList("direct-edge");
 
-            // No visual work in the constructor: EdgeControl.ComputeLayout dereferences the
-            // ports' panel, which does not exist until the edge is added to the graph.
-            // (Setting edgeWidth here threw NullReferenceException on window open.)
             RegisterCallback<AttachToPanelEvent>(_ => ApplyVisual());
             RegisterCallback<GeometryChangedEvent>(_ => ApplyVisual());
         }
 
-        /// <summary>Neighborhood highlight — repaints with the accent color instead of the link color.</summary>
         public void SetHighlight(XRayEdgeHighlight state)
         {
             if (_highlight == state) return;
@@ -58,14 +53,8 @@ namespace SceneXRay.Editor.UI
             ApplyVisual();
         }
 
-        /// <summary>Re-apply the user's Settings colors and line width (call after a settings change).</summary>
         public void RefreshVisual() => ApplyVisual();
 
-        /// <summary>
-        /// Edge reads --edge-color / --edge-width from USS here and pushes them into its
-        /// EdgeControl, so this is the one hook where our Settings colors can win: every
-        /// style resolution (including class changes and selection) passes through it.
-        /// </summary>
         protected override void OnCustomStyleResolved(ICustomStyle styles)
         {
             base.OnCustomStyleResolved(styles);
@@ -74,7 +63,6 @@ namespace SceneXRay.Editor.UI
 
         private void ApplyVisual()
         {
-            // Ports must be live: EdgeControl asks them for world positions.
             if (panel == null || edgeControl == null) return;
             if (input?.panel == null || output?.panel == null) return;
 
@@ -95,16 +83,15 @@ namespace SceneXRay.Editor.UI
         }
     }
 
-    /// <summary>Graph customization driven by Project Settings &gt; SceneXRay.</summary>
     internal static class XRayCustomization
     {
         public static Color DirectColor => SceneXRaySettings.instance.DirectColor;
         public static Color EventColor => SceneXRaySettings.instance.EventColor;
         public static Color MissingColor => SceneXRaySettings.instance.MissingColor;
         public static Color AssetColor => SceneXRaySettings.instance.AssetColor;
+        public static Color ImplicitColor => SceneXRaySettings.instance.ImplicitColor;
         public static float LineWidth => SceneXRaySettings.instance.LineWidth;
 
-        /// <summary>Accent colors for the neighborhood highlight (outgoing / incoming).</summary>
         public static readonly Color HighlightOutColor = new(1f, 0.69f, 0.25f);
         public static readonly Color HighlightInColor = new(0.38f, 0.78f, 1f);
 
@@ -114,10 +101,10 @@ namespace SceneXRay.Editor.UI
             if (link.IsMissing) return MissingColor;
             if (link.IsUnityEvent) return EventColor;
             if (link.IsAssetReference) return AssetColor;
+            if (link.IsImplicit) return ImplicitColor;
             return DirectColor;
         }
 
-        /// <summary>Recolor a synthetic node (missing / asset) from the matching setting.</summary>
         public static void ApplyNodeAccent(VisualElement node, Color accent)
         {
             node.style.borderTopColor = accent;
@@ -132,5 +119,6 @@ namespace SceneXRay.Editor.UI
 
         public static void ApplyMissingNodeStyle(VisualElement node) => ApplyNodeAccent(node, MissingColor);
         public static void ApplyAssetNodeStyle(VisualElement node) => ApplyNodeAccent(node, AssetColor);
+        public static void ApplyScriptNodeStyle(VisualElement node) => ApplyNodeAccent(node, ImplicitColor);
     }
 }

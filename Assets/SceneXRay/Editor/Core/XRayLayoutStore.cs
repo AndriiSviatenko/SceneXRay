@@ -7,11 +7,6 @@ using UnityEngine.SceneManagement;
 
 namespace SceneXRay.Editor.Core
 {
-    /// <summary>
-    /// Per-scene storage of hand-arranged graph node positions.
-    /// Lives in UserSettings/ — personal editor state, outside Assets and outside VCS,
-    /// and unlike Library/ it survives a reimport.
-    /// </summary>
     public static class XRayLayoutStore
     {
         private const string Folder = "UserSettings/SceneXRay/Layouts";
@@ -32,7 +27,6 @@ namespace SceneXRay.Editor.Core
             public List<Entry> Nodes = new();
         }
 
-        /// <summary>Identifier of the layout bucket for the currently active scene.</summary>
         public static string CurrentSceneKey
         {
             get
@@ -47,7 +41,6 @@ namespace SceneXRay.Editor.Core
             }
         }
 
-        /// <summary>Human-readable name of the active scene (for status messages).</summary>
         public static string CurrentSceneName
         {
             get
@@ -88,7 +81,6 @@ namespace SceneXRay.Editor.Core
             File.WriteAllText(PathFor(sceneKey), JsonUtility.ToJson(data, true));
         }
 
-        /// <summary>Saved positions by node key, or an empty map when nothing was stored.</summary>
         public static Dictionary<string, Vector2> Load(string sceneKey)
         {
             var result = new Dictionary<string, Vector2>();

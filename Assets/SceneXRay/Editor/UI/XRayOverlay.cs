@@ -6,21 +6,17 @@ using SceneXRay.Editor.Core;
 
 namespace SceneXRay.Editor.UI
 {
-    /// <summary>
-    /// Scene view overlay drawing dependency lines for the selected GameObject.
-    /// Repaints are throttled (~30 FPS) and only requested while animation is
-    /// enabled and a SceneView is actually visible.
-    /// </summary>
     [InitializeOnLoad]
     public static class XRayOverlay
     {
-        private const double RepaintInterval = 1.0 / 30.0; // ~30 FPS cap
+        private const double RepaintInterval = 1.0 / 30.0;
 
         private static GameObject _selectedObject;
         private static List<DependencyLink> _cachedLinks;
         private static double _lastAnimTime;
         private static double _lastRepaintTime;
         private static float _animationPhase;
+        private static GUIStyle _missingLabelStyle;
 
         static XRayOverlay()
         {
@@ -42,17 +38,17 @@ namespace SceneXRay.Editor.UI
 
         private static void UpdateAnimation()
         {
+            double now = EditorApplication.timeSinceStartup;
+            double delta = _lastAnimTime > 0d ? now - _lastAnimTime : 0d;
+            _lastAnimTime = now;
+
             var settings = SceneXRaySettings.instance;
             if (!settings.EnableXRayOverlay || !settings.AnimateOverlay) return;
             if (_cachedLinks == null || _cachedLinks.Count == 0) return;
             if (SceneView.lastActiveSceneView == null) return;
 
-            double now = EditorApplication.timeSinceStartup;
-            _animationPhase += (float)(now - _lastAnimTime) * 1.5f;
-            _lastAnimTime = now;
-            if (_animationPhase > Mathf.PI * 2) _animationPhase -= Mathf.PI * 2;
+            _animationPhase = Mathf.Repeat(_animationPhase + (float)delta * 1.5f, Mathf.PI * 2f);
 
-            // Throttled repaint of the active SceneView only.
             if (now - _lastRepaintTime >= RepaintInterval)
             {
                 _lastRepaintTime = now;
@@ -75,9 +71,10 @@ namespace SceneXRay.Editor.UI
             {
                 if (link.IsMissing)
                 {
-                    var style = new GUIStyle(EditorStyles.boldLabel) { normal = { textColor = missingColor } };
+                    _missingLabelStyle ??= new GUIStyle(EditorStyles.boldLabel);
+                    _missingLabelStyle.normal.textColor = missingColor;
                     Handles.Label(_selectedObject.transform.position + Vector3.up * 2f,
-                        $"Missing: {link.SourcePropertyName}", style);
+                        $"{XRayLocalization.GetText("missing")}: {link.SourcePropertyName}", _missingLabelStyle);
                     continue;
                 }
                 if (link.Target == null) continue;
